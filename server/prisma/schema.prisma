@@ -1,0 +1,43 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mongodb"
+    url      = env("DATABASE_URL")
+}
+
+enum NotificationType {
+    TASK_ASSIGNED
+}
+
+model User {
+    id           String @id @default(uuid()) @map("_id")
+    name         String
+    email        String @unique
+    passwordHash String
+
+    // relations
+    notifications Notification[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model Notification {
+    id String @id @default(uuid()) @map("_id")
+
+    userId String
+    // add gig or bid id
+
+    type    NotificationType
+    message String
+    isRead  Boolean          @default(false)
+
+    user User @relation(fields: [userId], references: [id])
+    // add gig or bid schema
+
+    createdAt DateTime @default(now())
+
+    @@index([userId, isRead])
+}
