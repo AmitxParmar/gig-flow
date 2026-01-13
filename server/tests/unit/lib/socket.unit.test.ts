@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { type Task } from '@prisma/client';
+import { type Gig } from '@prisma/client';
 
 // 1. Define mock objects
 const mockLogger = {
@@ -58,15 +58,14 @@ jest.mock('socket.io', () => {
 import SocketService from '@/lib/socket';
 
 describe('[Unit] - SocketService', () => {
-    const mockTask: Task = {
-        id: 'task-123',
-        title: 'Test Task',
+    const mockGig: Gig = {
+        id: 'gig-123',
+        title: 'Test Gig',
         description: 'Test Description',
-        status: 'TODO',
-        priority: 'LOW',
-        dueDate: new Date(),
-        creatorId: 'user-1',
-        assignedToId: 'user-2',
+        budget: 500,
+        status: 'OPEN',
+        ownerId: 'user-1',
+        hiredFreelancerId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
     };
@@ -79,47 +78,46 @@ describe('[Unit] - SocketService', () => {
         (SocketService as unknown as any).io = mockIo;
     });
 
-    describe('notifyTaskAssigned', () => {
-        it('should emit notification:assigned event to the specific user room', () => {
-            const userId = 'user-2';
-            const taskTitle = 'Test Task';
-            const taskId = 'task-123';
+    describe('notifyBidHired', () => {
+        it('should emit bid:hired event to the specific user room', () => {
+            const freelancerId = 'user-2';
             const payload = {
-                taskId: 'task-123',
-                task: mockTask
-            }
+                bidId: 'bid-123',
+                gigId: 'gig-123',
+                bid: { id: 'bid-123' },
+            };
 
-            SocketService.notifyTaskAssigned(userId, payload);
+            SocketService.notifyBidHired(freelancerId, payload);
 
-            expect(mockTo).toHaveBeenCalledWith(`user:${userId}`);
-            expect(mockEmit).toHaveBeenCalledWith('task:assigned', payload);
+            expect(mockTo).toHaveBeenCalledWith(`user:${freelancerId}`);
+            expect(mockEmit).toHaveBeenCalledWith('bid:hired', payload);
         });
     });
 
-    describe('emitTaskCreated', () => {
-        it('should emit task:created event globally', () => {
-            const payload = { taskId: mockTask.id, task: mockTask };
-            SocketService.emitTaskCreated(payload);
+    describe('emitGigCreated', () => {
+        it('should emit gig:created event globally', () => {
+            const payload = { gigId: mockGig.id, gig: mockGig };
+            SocketService.emitGigCreated(payload);
 
-            expect(mockEmit).toHaveBeenCalledWith('task:created', payload);
+            expect(mockEmit).toHaveBeenCalledWith('gig:created', payload);
         });
     });
 
-    describe('emitTaskUpdated', () => {
-        it('should emit task:updated event globally', () => {
-            const payload = { taskId: mockTask.id, task: mockTask };
-            SocketService.emitTaskUpdated(payload);
+    describe('emitGigUpdated', () => {
+        it('should emit gig:updated event globally', () => {
+            const payload = { gigId: mockGig.id, gig: mockGig };
+            SocketService.emitGigUpdated(payload);
 
-            expect(mockEmit).toHaveBeenCalledWith('task:updated', payload);
+            expect(mockEmit).toHaveBeenCalledWith('gig:updated', payload);
         });
     });
 
-    describe('emitTaskDeleted', () => {
-        it('should emit task:deleted event globally', () => {
-            const taskId = 'task-123';
-            SocketService.emitTaskDeleted(taskId);
+    describe('emitGigDeleted', () => {
+        it('should emit gig:deleted event globally', () => {
+            const gigId = 'gig-123';
+            SocketService.emitGigDeleted(gigId);
 
-            expect(mockEmit).toHaveBeenCalledWith('task:deleted', { taskId });
+            expect(mockEmit).toHaveBeenCalledWith('gig:deleted', { gigId });
         });
     });
 });

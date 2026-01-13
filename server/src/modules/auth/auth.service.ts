@@ -4,7 +4,7 @@ import jwtService from '@/lib/jwt';
 import passwordService from '@/lib/password';
 import { type TokenPair, type SafeUser } from '@/types/auth.type';
 import { HttpUnAuthorizedError, HttpBadRequestError } from '@/lib/errors';
-import LogMessage from '@/decorators/log-message.decorator';
+import logger from '@/lib/logger';
 
 export interface RegisterInput {
   email: string;
@@ -23,12 +23,12 @@ export interface AuthResult {
 }
 
 export default class AuthService {
-  @LogMessage<[RegisterInput]>({ message: 'User registration' })
   public async register(
     data: RegisterInput,
     userAgent?: string,
     ipAddress?: string
   ): Promise<AuthResult> {
+    logger.info(`User registration attempt: ${data.email}`);
     // Check if user already exists
     const existingUser = await authRepository.findUserByEmail(data.email);
     if (existingUser) {
@@ -65,12 +65,12 @@ export default class AuthService {
     return { user, tokens };
   }
 
-  @LogMessage<[LoginInput]>({ message: 'User login' })
   public async login(
     data: LoginInput,
     userAgent?: string,
     ipAddress?: string
   ): Promise<AuthResult> {
+    logger.info(`User login attempt: ${data.email}`);
     // Find user
     const user = await authRepository.findUserByEmail(data.email);
     if (!user) {

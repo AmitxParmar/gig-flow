@@ -38,6 +38,7 @@ build/Release
 
 # Dependency directories
 node_modules/
+.vscode
 
 # Environmental variables
 .env
