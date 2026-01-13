@@ -7,9 +7,28 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-enum NotificationType {
-    TASK_ASSIGNED
+// ==================== ENUMS ====================
+
+enum GigStatus {
+    OPEN
+    ASSIGNED
 }
+
+enum BidStatus {
+    PENDING
+    HIRED
+    REJECTED
+}
+
+enum NotificationType {
+    TASK_ASSIGNED // Legacy, keep for compatibility
+    BID_RECEIVED // Client receives when freelancer bids
+    BID_HIRED // Freelancer receives when hired
+    BID_REJECTED // Freelancer receives when bid rejected
+    GIG_ASSIGNED // Freelancer receives when gig assigned
+}
+
+// ==================== MODELS ====================
 
 model User {
     id           String @id @default(uuid()) @map("_id")
@@ -17,27 +36,100 @@ model User {
     email        String @unique
     passwordHash String
 
-    // relations
+    // Gig relations - fluid roles (any user can be client or freelancer)
+    postedGigs Gig[] @relation("PostedGigs") // Gigs user created as Client
+    hiredGigs  Gig[] @relation("HiredGigs") // Gigs user was hired for
+    placedBids Bid[] @relation("PlacedBids") // Bids user placed as Freelancer
+
+    // Sessions for auth
+    sessions Session[]
+
+    // Notifications
     notifications Notification[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 }
 
+model Session {
+    id           String   @id @default(uuid()) @map("_id")
+    userId       String
+    refreshToken String   @unique
+    userAgent    String?
+    ipAddress    String?
+    expiresAt    DateTime
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    createdAt DateTime @default(now())
+
+    @@index([userId])
+}
+
+model Gig {
+    id          String    @id @default(uuid()) @map("_id")
+    title       String
+    description String
+    budget      Float
+    status      GigStatus @default(OPEN)
+
+    // Owner (Client) - the user who posted the gig
+    ownerId String
+    owner   User   @relation("PostedGigs", fields: [ownerId], references: [id])
+
+    // Hired freelancer (optional, set when gig is assigned)
+    hiredFreelancerId String?
+    hiredFreelancer   User?   @relation("HiredGigs", fields: [hiredFreelancerId], references: [id])
+
+    // Relations
+    bids          Bid[]
+    notifications Notification[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([ownerId, status])
+    @@index([status])
+}
+
+model Bid {
+    id      String    @id @default(uuid()) @map("_id")
+    message String
+    price   Float
+    status  BidStatus @default(PENDING)
+
+    // Gig this bid is for
+    gigId String
+    gig   Gig    @relation(fields: [gigId], references: [id])
+
+    // Freelancer who placed the bid
+    freelancerId String
+    freelancer   User   @relation("PlacedBids", fields: [freelancerId], references: [id])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([gigId, freelancerId]) // One bid per freelancer per gig
+    @@index([gigId, status])
+    @@index([freelancerId])
+}
+
 model Notification {
-    id String @id @default(uuid()) @map("_id")
-
-    userId String
-    // add gig or bid id
-
+    id      String           @id @default(uuid()) @map("_id")
+    userId  String
     type    NotificationType
     message String
     isRead  Boolean          @default(false)
 
+    // Optional references for context
+    gigId String?
+    bidId String?
+
     user User @relation(fields: [userId], references: [id])
-    // add gig or bid schema
+    gig  Gig? @relation(fields: [gigId], references: [id])
 
     createdAt DateTime @default(now())
 
     @@index([userId, isRead])
+    @@index([gigId])
 }

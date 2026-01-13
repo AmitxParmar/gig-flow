@@ -1,20 +1,26 @@
 import prisma from '@/lib/prisma';
-import { type Notification } from '@prisma/client';
+import { type Notification, type NotificationType } from '@prisma/client';
+
+export interface CreateNotificationData {
+    userId: string;
+    type: NotificationType;
+    message: string;
+    gigId?: string;
+    bidId?: string;
+}
 
 export class NotificationRepository {
     /**
      * Creates a new notification
      */
-    public async create(data: {
-        userId: string;
-        taskId: string;
-        type: 'TASK_ASSIGNED';
-        message: string;
-    }): Promise<Notification> {
+    public async create(data: CreateNotificationData): Promise<Notification> {
         return prisma.notification.create({
             data: {
-                ...data,
+                userId: data.userId,
                 type: data.type,
+                message: data.message,
+                gigId: data.gigId,
+                bidId: data.bidId,
             },
         });
     }
@@ -27,8 +33,9 @@ export class NotificationRepository {
             where: { userId },
             orderBy: { createdAt: 'desc' },
             include: {
-                task: {
+                gig: {
                     select: {
+                        id: true,
                         title: true,
                     },
                 },

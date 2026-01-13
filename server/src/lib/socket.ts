@@ -1,13 +1,14 @@
 import { Server as HttpServer } from 'http';
-import { Server, type Socket } from 'socket.io';
+import { Server } from 'socket.io';
 import jwtService from '@/lib/jwt';
 import authRepository from '@/modules/auth/auth.repository';
 import logger from '@/lib/logger';
 import {
     SocketEvents,
     type AuthenticatedSocket,
-    type TaskEventPayload,
     type NotificationPayload,
+    type GigEventPayload,
+    type BidEventPayload,
 } from '@/types/socket.type';
 
 class SocketService {
@@ -130,30 +131,30 @@ class SocketService {
     }
 
     /**
-     * Broadcasts a task created event to all connected clients
+     * Broadcasts a gig created event to all connected clients
      */
-    public emitTaskCreated(payload: TaskEventPayload): void {
+    public emitGigCreated(payload: GigEventPayload): void {
         if (!this.io) return;
-        this.io.emit(SocketEvents.TASK_CREATED, payload);
-        logger.info(`Emitted task:created for task ${payload.taskId}`);
+        this.io.emit(SocketEvents.GIG_CREATED, payload);
+        logger.info(`Emitted gig:created for gig ${payload.gigId}`);
     }
 
     /**
-     * Broadcasts a task updated event to all connected clients
+     * Broadcasts a gig updated event to all connected clients
      */
-    public emitTaskUpdated(payload: TaskEventPayload): void {
+    public emitGigUpdated(payload: GigEventPayload): void {
         if (!this.io) return;
-        this.io.emit(SocketEvents.TASK_UPDATED, payload);
-        logger.info(`Emitted task:updated for task ${payload.taskId}`);
+        this.io.emit(SocketEvents.GIG_UPDATED, payload);
+        logger.info(`Emitted gig:updated for gig ${payload.gigId}`);
     }
 
     /**
-     * Broadcasts a task deleted event to all connected clients
+     * Broadcasts a gig deleted event to all connected clients
      */
-    public emitTaskDeleted(taskId: string): void {
+    public emitGigDeleted(gigId: string): void {
         if (!this.io) return;
-        this.io.emit(SocketEvents.TASK_DELETED, { taskId });
-        logger.info(`Emitted task:deleted for task ${taskId}`);
+        this.io.emit(SocketEvents.GIG_DELETED, { gigId });
+        logger.info(`Emitted gig:deleted for gig ${gigId}`);
     }
 
     /**
@@ -166,12 +167,30 @@ class SocketService {
     }
 
     /**
-     * Notifies a user when a task is assigned to them
+     * Notifies gig owner when a new bid is received
      */
-    public notifyTaskAssigned(userId: string, payload: TaskEventPayload): void {
+    public notifyBidReceived(ownerId: string, payload: BidEventPayload): void {
         if (!this.io) return;
-        this.io.to(`user:${userId}`).emit(SocketEvents.TASK_ASSIGNED, payload);
-        logger.info(`Notified user ${userId} of task assignment`);
+        this.io.to(`user:${ownerId}`).emit(SocketEvents.BID_RECEIVED, payload);
+        logger.info(`Notified owner ${ownerId} of new bid on gig ${payload.gigId}`);
+    }
+
+    /**
+     * Notifies freelancer when they are hired
+     */
+    public notifyBidHired(freelancerId: string, payload: BidEventPayload): void {
+        if (!this.io) return;
+        this.io.to(`user:${freelancerId}`).emit(SocketEvents.BID_HIRED, payload);
+        logger.info(`Notified freelancer ${freelancerId} they were hired for gig ${payload.gigId}`);
+    }
+
+    /**
+     * Notifies freelancer when their bid is rejected
+     */
+    public notifyBidRejected(freelancerId: string, payload: BidEventPayload): void {
+        if (!this.io) return;
+        this.io.to(`user:${freelancerId}`).emit(SocketEvents.BID_REJECTED, payload);
+        logger.info(`Notified freelancer ${freelancerId} their bid was rejected for gig ${payload.gigId}`);
     }
 }
 

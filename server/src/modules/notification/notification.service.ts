@@ -1,4 +1,4 @@
-import { type Notification } from '@prisma/client';
+import { type Notification, type NotificationType } from '@prisma/client';
 import notificationRepository from './notification.repository';
 import socketService from '@/lib/socket';
 import logger from '@/lib/logger';
@@ -39,46 +39,97 @@ export default class NotificationService {
     }
 
     /**
-     * Create a notification for task assignment and emit event
+     * Create a notification for gig-related events and emit via socket
      */
-    public async createTaskAssignmentNotification(
-        taskId: string,
-        assigneeId: string,
-        taskTitle: string,
-        task: unknown
+    public async createGigNotification(
+        userId: string,
+        type: NotificationType,
+        message: string,
+        gigId: string,
+        bidId?: string
     ): Promise<void> {
         try {
-            const message = `You have been assigned to task: ${taskTitle}`;
-
             // 1. Persist to DB
             const notification = await notificationRepository.create({
-                userId: assigneeId,
-                taskId,
-                type: 'TASK_ASSIGNED',
+                userId,
+                type,
                 message,
+                gigId,
+                bidId,
             });
 
             // 2. Emit Real-time Notification
-            socketService.sendNotificationToUser(assigneeId, {
+            socketService.sendNotificationToUser(userId, {
                 id: notification.id,
                 type: notification.type,
                 message: notification.message,
-                taskId: notification.taskId,
+                gigId: notification.gigId,
+                bidId: notification.bidId,
                 createdAt: notification.createdAt,
             });
 
-            // 3. Emit Task Assigned Event (specific event for strict typing on client if needed)
-            socketService.notifyTaskAssigned(assigneeId, {
-                taskId,
-                task,
-                newAssigneeId: assigneeId,
-                // We can attach the notification object if the client needs it immediately
-            });
-
-            logger.info(`Notification created for user ${assigneeId} on task ${taskId}`);
+            logger.info(`Notification created for user ${userId}: ${type}`);
         } catch (error) {
             logger.error('Failed to create notification', error);
-            // We don't throw here to avoid blocking the main task operation
+            // We don't throw here to avoid blocking the main operation
         }
+    }
+
+    /**
+     * Notify freelancer when they are hired
+     */
+    public async notifyHired(
+        freelancerId: string,
+        gigTitle: string,
+        gigId: string,
+        bidId: string
+    ): Promise<void> {
+        const message = `🎉 Congratulations! You have been hired for: "${gigTitle}"`;
+        await this.createGigNotification(
+            freelancerId,
+            'BID_HIRED',
+            message,
+            gigId,
+            bidId
+        );
+    }
+
+    /**
+     * Notify freelancer when their bid is rejected
+     */
+    public async notifyBidRejected(
+        freelancerId: string,
+        gigTitle: string,
+        gigId: string,
+        bidId: string
+    ): Promise<void> {
+        const message = `Your bid for "${gigTitle}" was not selected.`;
+        await this.createGigNotification(
+            freelancerId,
+            'BID_REJECTED',
+            message,
+            gigId,
+            bidId
+        );
+    }
+
+    /**
+     * Notify gig owner when they receive a new bid
+     */
+    public async notifyNewBid(
+        ownerId: string,
+        gigTitle: string,
+        gigId: string,
+        bidId: string,
+        freelancerName: string
+    ): Promise<void> {
+        const message = `${freelancerName} has submitted a bid on your gig: "${gigTitle}"`;
+        await this.createGigNotification(
+            ownerId,
+            'BID_RECEIVED',
+            message,
+            gigId,
+            bidId
+        );
     }
 }
