@@ -1,8 +1,8 @@
-import { type GigStatus } from '@prisma/client';
 import gigRepository, {
     type GigWithRelations,
     type PaginatedGigs,
     type GigFilters,
+    GigStatus,
 } from './gig.repository';
 import { HttpNotFoundError, HttpBadRequestError, HttpUnAuthorizedError } from '@/lib/errors';
 import logger from '@/lib/logger';
@@ -44,7 +44,7 @@ class GigService {
         // Default to showing only OPEN gigs unless status is specified
         const queryFilters: GigFilters = {
             ...filters,
-            status: filters.status || ('OPEN' as GigStatus),
+            status: filters.status || GigStatus.OPEN,
         };
 
         return gigRepository.findAllGigs(queryFilters);
@@ -56,7 +56,7 @@ class GigService {
     async getOpenGigs(filters: Omit<GigFilters, 'status'> = {}): Promise<PaginatedGigs> {
         return gigRepository.findAllGigs({
             ...filters,
-            status: 'OPEN' as GigStatus,
+            status: GigStatus.OPEN,
         });
     }
 
@@ -97,7 +97,7 @@ class GigService {
         }
 
         // Check if gig is already assigned
-        if (gig.status === 'ASSIGNED') {
+        if (gig.status === GigStatus.ASSIGNED) {
             throw new HttpBadRequestError('Cannot update an assigned gig', [
                 'This gig has already been assigned to a freelancer',
             ]);

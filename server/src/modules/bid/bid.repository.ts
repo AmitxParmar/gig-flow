@@ -1,5 +1,4 @@
-import { type Bid, type BidStatus, type Prisma } from '@prisma/client';
-import prismaClient from '@/lib/prisma';
+import Bid, { BidStatus } from '@/models/Bid';
 import logger from '@/lib/logger';
 
 export interface CreateBidData {
@@ -14,25 +13,79 @@ export interface UpdateBidData {
     price?: number;
 }
 
-export interface BidWithRelations extends Bid {
-    freelancer: {
-        id: string;
-        name: string;
-        email: string;
-    };
-    gig: {
-        id: string;
-        title: string;
-        budget: number;
-        status: string;
-        ownerId: string;
-        owner: {
-            id: string;
-            name: string;
-            email: string;
-        };
-    };
+export interface BidOwner {
+    id: string;
+    name: string;
+    email: string;
 }
+
+export interface BidGig {
+    id: string;
+    title: string;
+    budget: number;
+    status: string;
+    ownerId: string;
+    owner: BidOwner;
+}
+
+export interface BidWithRelations {
+    id: string;
+    message: string;
+    price: number;
+    status: BidStatus;
+    gigId: string;
+    freelancerId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    freelancer: BidOwner;
+    gig: BidGig;
+}
+
+export interface BidDocument {
+    id: string;
+    _id?: any;
+    message: string;
+    price: number;
+    status: BidStatus;
+    gigId: any;
+    freelancerId: any;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+// Helper to transform Mongoose document to BidWithRelations
+const transformBid = (bid: any): BidWithRelations => {
+    const gigData = bid.gigId;
+    const freelancerData = bid.freelancerId;
+
+    return {
+        id: bid._id?.toString() || bid.id,
+        message: bid.message,
+        price: bid.price,
+        status: bid.status,
+        gigId: gigData?._id?.toString() || gigData?.toString() || bid.gigId?.toString(),
+        freelancerId: freelancerData?._id?.toString() || freelancerData?.toString() || bid.freelancerId?.toString(),
+        createdAt: bid.createdAt,
+        updatedAt: bid.updatedAt,
+        freelancer: freelancerData?._id ? {
+            id: freelancerData._id.toString(),
+            name: freelancerData.name,
+            email: freelancerData.email,
+        } : { id: freelancerData?.toString() || '', name: '', email: '' },
+        gig: gigData?._id ? {
+            id: gigData._id.toString(),
+            title: gigData.title,
+            budget: gigData.budget,
+            status: gigData.status,
+            ownerId: gigData.ownerId?._id?.toString() || gigData.ownerId?.toString(),
+            owner: gigData.ownerId?._id ? {
+                id: gigData.ownerId._id.toString(),
+                name: gigData.ownerId.name,
+                email: gigData.ownerId.email,
+            } : { id: gigData.ownerId?.toString() || '', name: '', email: '' },
+        } : { id: gigData?.toString() || '', title: '', budget: 0, status: '', ownerId: '', owner: { id: '', name: '', email: '' } },
+    };
+};
 
 class BidRepository {
     /**
@@ -41,151 +94,87 @@ class BidRepository {
     async createBid(data: CreateBidData): Promise<BidWithRelations> {
         logger.info(`Creating bid for gig ${data.gigId} by freelancer ${data.freelancerId}`);
 
-        const bid = await prismaClient.bid.create({
-            data: {
-                gigId: data.gigId,
-                freelancerId: data.freelancerId,
-                message: data.message,
-                price: data.price,
-            },
-            include: {
-                freelancer: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                    },
-                },
-                gig: {
-                    select: {
-                        id: true,
-                        title: true,
-                        budget: true,
-                        status: true,
-                        ownerId: true,
-                        owner: {
-                            select: {
-                                id: true,
-                                name: true,
-                                email: true,
-                            },
-                        },
-                    },
-                },
-            },
+        const bid = await Bid.create({
+            gigId: data.gigId,
+            freelancerId: data.freelancerId,
+            message: data.message,
+            price: data.price,
         });
 
-        return bid;
+        const populatedBid = await Bid.findById(bid._id)
+            .populate('freelancerId', 'name email')
+            .populate({
+                path: 'gigId',
+                select: 'title budget status ownerId',
+                populate: {
+                    path: 'ownerId',
+                    select: 'name email',
+                },
+            })
+            .lean();
+
+        return transformBid(populatedBid);
     }
 
     /**
      * Find a bid by ID with relations
      */
     async findBidById(id: string): Promise<BidWithRelations | null> {
-        const bid = await prismaClient.bid.findUnique({
-            where: { id },
-            include: {
-                freelancer: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                    },
+        const bid = await Bid.findById(id)
+            .populate('freelancerId', 'name email')
+            .populate({
+                path: 'gigId',
+                select: 'title budget status ownerId',
+                populate: {
+                    path: 'ownerId',
+                    select: 'name email',
                 },
-                gig: {
-                    select: {
-                        id: true,
-                        title: true,
-                        budget: true,
-                        status: true,
-                        ownerId: true,
-                        owner: {
-                            select: {
-                                id: true,
-                                name: true,
-                                email: true,
-                            },
-                        },
-                    },
-                },
-            },
-        });
+            })
+            .lean();
 
-        return bid;
+        if (!bid) return null;
+
+        return transformBid(bid);
     }
 
     /**
      * Find all bids for a specific gig
      */
     async findBidsByGigId(gigId: string): Promise<BidWithRelations[]> {
-        const bids = await prismaClient.bid.findMany({
-            where: { gigId },
-            orderBy: { createdAt: 'desc' },
-            include: {
-                freelancer: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                    },
+        const bids = await Bid.find({ gigId })
+            .sort({ createdAt: -1 })
+            .populate('freelancerId', 'name email')
+            .populate({
+                path: 'gigId',
+                select: 'title budget status ownerId',
+                populate: {
+                    path: 'ownerId',
+                    select: 'name email',
                 },
-                gig: {
-                    select: {
-                        id: true,
-                        title: true,
-                        budget: true,
-                        status: true,
-                        ownerId: true,
-                        owner: {
-                            select: {
-                                id: true,
-                                name: true,
-                                email: true,
-                            },
-                        },
-                    },
-                },
-            },
-        });
+            })
+            .lean();
 
-        return bids;
+        return bids.map(transformBid);
     }
 
     /**
      * Find all bids placed by a specific freelancer
      */
     async findBidsByFreelancerId(freelancerId: string): Promise<BidWithRelations[]> {
-        const bids = await prismaClient.bid.findMany({
-            where: { freelancerId },
-            orderBy: { createdAt: 'desc' },
-            include: {
-                freelancer: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                    },
+        const bids = await Bid.find({ freelancerId })
+            .sort({ createdAt: -1 })
+            .populate('freelancerId', 'name email')
+            .populate({
+                path: 'gigId',
+                select: 'title budget status ownerId',
+                populate: {
+                    path: 'ownerId',
+                    select: 'name email',
                 },
-                gig: {
-                    select: {
-                        id: true,
-                        title: true,
-                        budget: true,
-                        status: true,
-                        ownerId: true,
-                        owner: {
-                            select: {
-                                id: true,
-                                name: true,
-                                email: true,
-                            },
-                        },
-                    },
-                },
-            },
-        });
+            })
+            .lean();
 
-        return bids;
+        return bids.map(transformBid);
     }
 
     /**
@@ -194,49 +183,56 @@ class BidRepository {
     async updateBid(id: string, data: UpdateBidData): Promise<BidWithRelations> {
         logger.info(`Updating bid: ${id}`);
 
-        const bid = await prismaClient.bid.update({
-            where: { id },
-            data,
-            include: {
-                freelancer: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                    },
+        const bid = await Bid.findByIdAndUpdate(
+            id,
+            { $set: data },
+            { new: true }
+        )
+            .populate('freelancerId', 'name email')
+            .populate({
+                path: 'gigId',
+                select: 'title budget status ownerId',
+                populate: {
+                    path: 'ownerId',
+                    select: 'name email',
                 },
-                gig: {
-                    select: {
-                        id: true,
-                        title: true,
-                        budget: true,
-                        status: true,
-                        ownerId: true,
-                        owner: {
-                            select: {
-                                id: true,
-                                name: true,
-                                email: true,
-                            },
-                        },
-                    },
-                },
-            },
-        });
+            })
+            .lean();
 
-        return bid;
+        if (!bid) {
+            throw new Error('Bid not found');
+        }
+
+        return transformBid(bid);
     }
 
     /**
      * Update bid status
      */
-    async updateBidStatus(id: string, status: BidStatus): Promise<Bid> {
+    async updateBidStatus(id: string, status: BidStatus): Promise<BidDocument> {
         logger.info(`Updating bid ${id} status to ${status}`);
 
-        return prismaClient.bid.update({
-            where: { id },
-            data: { status },
-        });
+        const bid = await Bid.findByIdAndUpdate(
+            id,
+            { $set: { status } },
+            { new: true }
+        ).lean();
+
+        if (!bid) {
+            throw new Error('Bid not found');
+        }
+
+        return {
+            id: bid._id.toString(),
+            _id: bid._id,
+            message: bid.message,
+            price: bid.price,
+            status: bid.status,
+            gigId: bid.gigId,
+            freelancerId: bid.freelancerId,
+            createdAt: bid.createdAt,
+            updatedAt: bid.updatedAt,
+        };
     }
 
     /**
@@ -246,44 +242,65 @@ class BidRepository {
     async rejectOtherBids(gigId: string, hiredBidId: string): Promise<number> {
         logger.info(`Rejecting all bids for gig ${gigId} except ${hiredBidId}`);
 
-        const result = await prismaClient.bid.updateMany({
-            where: {
+        const result = await Bid.updateMany(
+            {
                 gigId,
-                id: { not: hiredBidId },
-                status: 'PENDING',
+                _id: { $ne: hiredBidId },
+                status: BidStatus.PENDING,
             },
-            data: { status: 'REJECTED' },
-        });
+            { $set: { status: BidStatus.REJECTED } }
+        );
 
-        return result.count;
+        return result.modifiedCount;
     }
 
     /**
      * Check if freelancer already bid on this gig
      */
-    async findExistingBid(gigId: string, freelancerId: string): Promise<Bid | null> {
-        return prismaClient.bid.findUnique({
-            where: {
-                gigId_freelancerId: {
-                    gigId,
-                    freelancerId,
-                },
-            },
-        });
+    async findExistingBid(gigId: string, freelancerId: string): Promise<BidDocument | null> {
+        const bid = await Bid.findOne({ gigId, freelancerId }).lean();
+        if (!bid) return null;
+
+        return {
+            id: bid._id.toString(),
+            _id: bid._id,
+            message: bid.message,
+            price: bid.price,
+            status: bid.status,
+            gigId: bid.gigId,
+            freelancerId: bid.freelancerId,
+            createdAt: bid.createdAt,
+            updatedAt: bid.updatedAt,
+        };
     }
 
     /**
      * Get all pending bids for a gig (for rejection notifications)
      */
-    async findPendingBidsForGig(gigId: string, excludeBidId?: string): Promise<Bid[]> {
-        return prismaClient.bid.findMany({
-            where: {
-                gigId,
-                status: 'PENDING',
-                ...(excludeBidId && { id: { not: excludeBidId } }),
-            },
-        });
+    async findPendingBidsForGig(gigId: string, excludeBidId?: string): Promise<BidDocument[]> {
+        const query: Record<string, any> = {
+            gigId,
+            status: BidStatus.PENDING,
+        };
+
+        if (excludeBidId) {
+            query._id = { $ne: excludeBidId };
+        }
+
+        const bids = await Bid.find(query).lean();
+        return bids.map(bid => ({
+            id: bid._id.toString(),
+            _id: bid._id,
+            message: bid.message,
+            price: bid.price,
+            status: bid.status,
+            gigId: bid.gigId,
+            freelancerId: bid.freelancerId,
+            createdAt: bid.createdAt,
+            updatedAt: bid.updatedAt,
+        }));
     }
 }
 
 export default new BidRepository();
+export { BidStatus };

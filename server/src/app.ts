@@ -11,7 +11,7 @@ import expressJSDocSwaggerConfig from './config/express-jsdoc-swagger.config';
 import appConfig from './config/app.config';
 import errorHandler from '@/middlewares/error-handler';
 import routes from '@/modules/index';
-import prismaClient from '@/lib/prisma';
+import database from '@/lib/mongoose';
 
 class App {
   public express: express.Application;
@@ -71,8 +71,8 @@ class App {
     expressJSDocSwagger(this.express)(expressJSDocSwaggerConfig);
   }
 
-  public async connectPrisma(): Promise<void> {
-    await prismaClient.$connect();
+  public async connectDatabase(): Promise<void> {
+    await database.connect();
   }
 }
 

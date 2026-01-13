@@ -1,5 +1,8 @@
-import { type Notification, type NotificationType } from '@prisma/client';
-import notificationRepository from './notification.repository';
+import notificationRepository, {
+    NotificationType,
+    NotificationWithGig,
+    NotificationDocument
+} from './notification.repository';
 import socketService from '@/lib/socket';
 import logger from '@/lib/logger';
 import { HttpNotFoundError } from '@/lib/errors';
@@ -8,7 +11,7 @@ export default class NotificationService {
     /**
      * Get all notifications for a user
      */
-    public async getMyNotifications(userId: string): Promise<Notification[]> {
+    public async getMyNotifications(userId: string): Promise<NotificationWithGig[]> {
         return notificationRepository.findAll(userId);
     }
 
@@ -23,7 +26,7 @@ export default class NotificationService {
     /**
      * Mark a notification as read
      */
-    public async markAsRead(id: string, userId: string): Promise<Notification> {
+    public async markAsRead(id: string, userId: string): Promise<NotificationDocument> {
         try {
             return await notificationRepository.markAsRead(id, userId);
         } catch (error) {
@@ -63,8 +66,8 @@ export default class NotificationService {
                 id: notification.id,
                 type: notification.type,
                 message: notification.message,
-                gigId: notification.gigId,
-                bidId: notification.bidId,
+                gigId: notification.gigId || null,
+                bidId: notification.bidId || null,
                 createdAt: notification.createdAt,
             });
 
@@ -87,7 +90,7 @@ export default class NotificationService {
         const message = `🎉 Congratulations! You have been hired for: "${gigTitle}"`;
         await this.createGigNotification(
             freelancerId,
-            'BID_HIRED',
+            NotificationType.BID_HIRED,
             message,
             gigId,
             bidId
@@ -106,7 +109,7 @@ export default class NotificationService {
         const message = `Your bid for "${gigTitle}" was not selected.`;
         await this.createGigNotification(
             freelancerId,
-            'BID_REJECTED',
+            NotificationType.BID_REJECTED,
             message,
             gigId,
             bidId
@@ -126,7 +129,7 @@ export default class NotificationService {
         const message = `${freelancerName} has submitted a bid on your gig: "${gigTitle}"`;
         await this.createGigNotification(
             ownerId,
-            'BID_RECEIVED',
+            NotificationType.BID_RECEIVED,
             message,
             gigId,
             bidId

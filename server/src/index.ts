@@ -3,7 +3,7 @@ import { config as configDotenv } from 'dotenv';
 import server from './server';
 import { printAppInfo } from './utils/print-app-info';
 import appConfig from './config/app.config';
-import prismaClient from '@/lib/prisma';
+import database from '@/lib/mongoose';
 import environment from '@/lib/environment';
 
 configDotenv();
@@ -18,9 +18,8 @@ server.listen(process.env.PORT, () => {
   printAppInfo(port, env, appUrl, apiUrl);
 });
 
-process.on('SIGINT', () => {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  prismaClient.$disconnect();
-  console.log('Prisma Disconnected.');
+process.on('SIGINT', async () => {
+  await database.disconnect();
+  console.log('MongoDB Disconnected.');
   process.exit(0);
 });

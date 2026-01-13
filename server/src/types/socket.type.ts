@@ -1,6 +1,6 @@
 import { type Socket } from 'socket.io';
 import { type SafeUser } from './auth.type';
-import { type NotificationType } from '@prisma/client';
+import { NotificationType } from '@/models/Notification';
 
 export interface AuthenticatedSocket extends Socket {
     user?: SafeUser;

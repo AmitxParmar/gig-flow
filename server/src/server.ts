@@ -8,8 +8,8 @@ const httpServer = createServer(app.express);
 // Initialize Socket.io
 socketService.initialize(httpServer);
 
-// Connect Prisma
-app.connectPrisma().catch((e) => {
+// Connect MongoDB
+app.connectDatabase().catch((e) => {
   throw e;
 });
 

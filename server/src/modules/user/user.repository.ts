@@ -1,35 +1,42 @@
+import User, { IUser } from '@/models/User';
 
-import prisma from '@/lib/prisma';
-import { User, Prisma } from '@prisma/client';
+export interface SafeUser {
+    id: string;
+    name: string;
+    email: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 export class UserRepository {
     /**
-     * Finds all users
+     * Finds all users with optional search and exclusion
      */
-    public async findAll(search?: string, userId?: User['id']): Promise<Omit<User, 'passwordHash'>[]> {
-        const where: Prisma.UserWhereInput = search ? {
-            OR: [
-                { name: { contains: search, mode: 'insensitive' as const } },
-                { email: { contains: search, mode: 'insensitive' as const } }
-            ]
-        } : {};
+    public async findAll(search?: string, excludeUserId?: string): Promise<SafeUser[]> {
+        const query: Record<string, any> = {};
 
-        if (userId) {
-            where.id = {
-                not: userId
-            };
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+            ];
         }
 
-        return prisma.user.findMany({
-            where,
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                createdAt: true,
-                updatedAt: true,
-            }
-        });
+        if (excludeUserId) {
+            query._id = { $ne: excludeUserId };
+        }
+
+        const users = await User.find(query)
+            .select('-passwordHash')
+            .lean();
+
+        return users.map((user) => ({
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+        }));
     }
 }
 

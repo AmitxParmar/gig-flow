@@ -1,6 +1,38 @@
-import { type User, type Session } from '@prisma/client';
-import prisma from '@/lib/prisma';
+import User from '@/models/User';
+import Session from '@/models/Session';
 import { type SessionData, type SafeUser } from '@/types/auth.type';
+
+// Type for user data returned by lean queries
+export interface UserDocument {
+    _id: any;
+    id?: string;
+    name: string;
+    email: string;
+    passwordHash: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+// Type for session data returned by lean queries
+export interface SessionDocument {
+    _id: any;
+    id?: string;
+    userId: any;
+    refreshToken: string;
+    userAgent?: string;
+    ipAddress?: string;
+    expiresAt: Date;
+    createdAt: Date;
+}
+
+// Helper to transform lean document to include id
+const transformUser = (user: any): SafeUser => ({
+    id: user._id?.toString() || user.id,
+    email: user.email,
+    name: user.name,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+});
 
 export class AuthRepository {
     public async createUser(data: {
@@ -8,74 +40,71 @@ export class AuthRepository {
         name: string;
         passwordHash: string;
     }): Promise<SafeUser> {
-        const user = await prisma.user.create({
-            data,
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                createdAt: true,
-                updatedAt: true,
-            },
-        });
-        return user as SafeUser;
+        const user = await User.create(data);
+        return transformUser(user.toJSON());
     }
 
-    public async findUserByEmail(email: string): Promise<User | null> {
-        return prisma.user.findUnique({
-            where: { email },
-        });
+    public async findUserByEmail(email: string): Promise<UserDocument | null> {
+        const user = await User.findOne({ email }).lean();
+        if (!user) return null;
+
+        return {
+            ...user,
+            id: user._id.toString(),
+        };
     }
 
     public async findUserById(id: string): Promise<SafeUser | null> {
-        const user = await prisma.user.findUnique({
-            where: { id },
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                createdAt: true,
-                updatedAt: true,
-            },
-        });
-        return user as SafeUser | null;
+        const user = await User.findById(id)
+            .select('-passwordHash')
+            .lean();
+
+        if (!user) return null;
+        return transformUser(user);
     }
 
-    public async createSession(data: SessionData): Promise<Session> {
-        return prisma.session.create({
-            data: {
-                userId: data.userId,
-                refreshToken: data.refreshToken,
-                userAgent: data.userAgent,
-                ipAddress: data.ipAddress,
-                expiresAt: data.expiresAt,
-            },
+    public async createSession(data: SessionData): Promise<SessionDocument> {
+        const session = await Session.create({
+            userId: data.userId,
+            refreshToken: data.refreshToken,
+            userAgent: data.userAgent,
+            ipAddress: data.ipAddress,
+            expiresAt: data.expiresAt,
         });
+
+        return {
+            _id: session._id,
+            id: session._id.toString(),
+            userId: session.userId,
+            refreshToken: session.refreshToken,
+            userAgent: session.userAgent,
+            ipAddress: session.ipAddress,
+            expiresAt: session.expiresAt,
+            createdAt: session.createdAt,
+        };
     }
 
-    public async findSessionByToken(refreshToken: string): Promise<Session | null> {
-        return prisma.session.findUnique({
-            where: { refreshToken },
-        });
+    public async findSessionByToken(refreshToken: string): Promise<SessionDocument | null> {
+        const session = await Session.findOne({ refreshToken }).lean();
+        if (!session) return null;
+
+        return {
+            ...session,
+            id: session._id.toString(),
+        };
     }
 
     public async deleteSession(refreshToken: string): Promise<void> {
-        await prisma.session.delete({
-            where: { refreshToken },
-        });
+        await Session.deleteOne({ refreshToken });
     }
 
     public async deleteAllUserSessions(userId: string): Promise<void> {
-        await prisma.session.deleteMany({
-            where: { userId },
-        });
+        await Session.deleteMany({ userId });
     }
 
     public async deleteExpiredSessions(): Promise<void> {
-        await prisma.session.deleteMany({
-            where: {
-                expiresAt: { lt: new Date() },
-            },
+        await Session.deleteMany({
+            expiresAt: { $lt: new Date() },
         });
     }
 
@@ -83,18 +112,17 @@ export class AuthRepository {
         id: string,
         data: { name?: string; email?: string }
     ): Promise<SafeUser> {
-        const user = await prisma.user.update({
-            where: { id },
-            data,
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                createdAt: true,
-                updatedAt: true,
-            },
-        });
-        return user as SafeUser;
+        const user = await User.findByIdAndUpdate(
+            id,
+            { $set: data },
+            { new: true, select: '-passwordHash' }
+        ).lean();
+
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        return transformUser(user);
     }
 }
 

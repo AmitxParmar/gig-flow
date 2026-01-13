@@ -1,11 +1,14 @@
+import mongoose from 'mongoose';
 import bidRepository, {
     type BidWithRelations,
+    BidStatus,
 } from './bid.repository';
-import gigRepository from '../gig/gig.repository';
+import gigRepository, { GigStatus } from '../gig/gig.repository';
 import { HttpNotFoundError, HttpBadRequestError, HttpUnAuthorizedError } from '@/lib/errors';
 import NotificationService from '../notification/notification.service';
 import socketService from '@/lib/socket';
-import prismaClient from '@/lib/prisma';
+import Gig from '@/models/Gig';
+import Bid from '@/models/Bid';
 import logger from '@/lib/logger';
 
 export interface CreateBidInput {
@@ -38,7 +41,7 @@ class BidService {
         }
 
         // Check if gig is open
-        if (gig.status !== 'OPEN') {
+        if (gig.status !== GigStatus.OPEN) {
             throw new HttpBadRequestError('Cannot bid on this gig', [
                 'This gig is no longer accepting bids',
             ]);
@@ -146,7 +149,7 @@ class BidService {
         }
 
         // Check if bid is still pending
-        if (bid.status !== 'PENDING') {
+        if (bid.status !== BidStatus.PENDING) {
             throw new HttpBadRequestError('Cannot update this bid', [
                 'You can only update pending bids',
             ]);
@@ -182,14 +185,14 @@ class BidService {
         }
 
         // Check if bid is pending
-        if (bid.status !== 'PENDING') {
+        if (bid.status !== BidStatus.PENDING) {
             throw new HttpBadRequestError('Cannot hire this bid', [
                 `This bid has already been ${bid.status.toLowerCase()}`,
             ]);
         }
 
         // Check if gig is still open (prevents race condition)
-        if (bid.gig.status !== 'OPEN') {
+        if (bid.gig.status !== GigStatus.OPEN) {
             throw new HttpBadRequestError('This gig is no longer accepting bids', [
                 'Another freelancer may have already been hired',
             ]);
@@ -198,43 +201,50 @@ class BidService {
         // Get all pending bids before the transaction (for notifications)
         const pendingBids = await bidRepository.findPendingBidsForGig(bid.gigId, bidId);
 
-        // Execute atomic transaction
-        try {
-            await prismaClient.$transaction(async (tx) => {
-                // Double-check gig is still OPEN inside transaction
-                const currentGig = await tx.gig.findUnique({
-                    where: { id: bid.gigId },
-                    select: { status: true },
-                });
+        // Start MongoDB session for transaction
+        const session = await mongoose.startSession();
 
-                if (!currentGig || currentGig.status !== 'OPEN') {
+        try {
+            await session.withTransaction(async () => {
+                // Double-check gig is still OPEN inside transaction
+                const currentGig = await Gig.findById(bid.gigId)
+                    .select('status')
+                    .session(session)
+                    .lean();
+
+                if (!currentGig || currentGig.status !== GigStatus.OPEN) {
                     throw new Error('RACE_CONDITION');
                 }
 
                 // 1. Update the hired bid status
-                await tx.bid.update({
-                    where: { id: bidId },
-                    data: { status: 'HIRED' },
-                });
+                await Bid.findByIdAndUpdate(
+                    bidId,
+                    { $set: { status: BidStatus.HIRED } },
+                    { session }
+                );
 
                 // 2. Reject all other pending bids
-                await tx.bid.updateMany({
-                    where: {
+                await Bid.updateMany(
+                    {
                         gigId: bid.gigId,
-                        id: { not: bidId },
-                        status: 'PENDING',
+                        _id: { $ne: bidId },
+                        status: BidStatus.PENDING,
                     },
-                    data: { status: 'REJECTED' },
-                });
+                    { $set: { status: BidStatus.REJECTED } },
+                    { session }
+                );
 
                 // 3. Update gig status to ASSIGNED
-                await tx.gig.update({
-                    where: { id: bid.gigId },
-                    data: {
-                        status: 'ASSIGNED',
-                        hiredFreelancerId: bid.freelancerId,
+                await Gig.findByIdAndUpdate(
+                    bid.gigId,
+                    {
+                        $set: {
+                            status: GigStatus.ASSIGNED,
+                            hiredFreelancerId: bid.freelancerId,
+                        },
                     },
-                });
+                    { session }
+                );
             });
         } catch (error: any) {
             if (error.message === 'RACE_CONDITION') {
@@ -244,6 +254,8 @@ class BidService {
             }
             logger.error('Transaction failed during hiring:', error);
             throw error;
+        } finally {
+            await session.endSession();
         }
 
         // Get the updated bid
@@ -272,16 +284,16 @@ class BidService {
         // Notify rejected freelancers
         for (const rejectedBid of pendingBids) {
             await notificationService.notifyBidRejected(
-                rejectedBid.freelancerId,
+                rejectedBid.freelancerId.toString(),
                 bid.gig.title,
                 bid.gigId,
                 rejectedBid.id
             );
 
-            socketService.notifyBidRejected(rejectedBid.freelancerId, {
+            socketService.notifyBidRejected(rejectedBid.freelancerId.toString(), {
                 bidId: rejectedBid.id,
                 gigId: bid.gigId,
-                freelancerId: rejectedBid.freelancerId,
+                freelancerId: rejectedBid.freelancerId.toString(),
             });
         }
 
