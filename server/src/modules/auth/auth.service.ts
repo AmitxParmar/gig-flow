@@ -1,5 +1,4 @@
-import { type User } from '@prisma/client';
-import authRepository from './auth.repository';
+import authRepository, { UserDocument } from './auth.repository';
 import jwtService from '@/lib/jwt';
 import passwordService from '@/lib/password';
 import { type TokenPair, type SafeUser } from '@/types/auth.type';
@@ -88,13 +87,13 @@ export default class AuthService {
 
     // Generate tokens
     const tokens = jwtService.generateTokenPair({
-      userId: user.id,
+      userId: user.id!,
       email: user.email,
     });
 
     // Create session
     await authRepository.createSession({
-      userId: user.id,
+      userId: user.id!,
       refreshToken: tokens.refreshToken,
       userAgent,
       ipAddress,
@@ -102,8 +101,14 @@ export default class AuthService {
     });
 
     // Return user without password
-    const { passwordHash, ...safeUser } = user;
-    return { user: safeUser as SafeUser, tokens };
+    const safeUser: SafeUser = {
+      id: user.id!,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+    return { user: safeUser, tokens };
   }
 
   public async logout(refreshToken: string): Promise<void> {
