@@ -1,123 +1,123 @@
-import axios from 'axios'
+import { authService } from "@/services/auth.service";
+import axios from "axios";
+import { QueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
-// Dynamically construct API URL based on environment
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
-const ENV = import.meta.env.MODE === 'production' ? 'production' : 'development'
-const API_URL = `${BASE_URL}/v1/${ENV}`
+const api = axios.create({
+    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000",
+    withCredentials: true, // important for cookies
+});
 
-export const apiClient = axios.create({
-    baseURL: API_URL,
-    withCredentials: true, // Important for cookies (JWT tokens)
-    headers: {
-        'Content-Type': 'application/json',
-    },
-})
+let isRefreshing = false;
+let refreshSubscribers: Array<() => void> = [];
+let queryClient: QueryClient | null = null;
 
-let isRefreshing = false
-let refreshSubscribers: Array<(token?: string) => void> = []
+// Set query client instance (called from app initialization)
+export const setQueryClient = (client: QueryClient) => {
+    queryClient = client;
+};
 
-const subscribeTokenRefresh = (cb: (token?: string) => void) => {
-    refreshSubscribers.push(cb)
-}
+const subscribeTokenRefresh = (cb: () => void) => {
+    refreshSubscribers.push(cb);
+};
 
-const onRefreshed = (token?: string) => {
-    refreshSubscribers.forEach((cb) => cb(token))
-    refreshSubscribers = []
-}
+const onRefreshed = () => {
+    refreshSubscribers.forEach((cb) => cb());
+    refreshSubscribers = [];
+};
 
-// Redirect helper that works safely in client environment
-const safeRedirect = (path: string) => {
-    if (typeof window !== "undefined") {
-        window.location.href = path
-    }
-}
-
-// Response interceptor for handling errors and automatic token refresh
-apiClient.interceptors.response.use(
+// Response interceptor for automatic token refresh
+api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const { response, config } = error
-        const originalRequest = config
+        const { response, config } = error;
+        const requestUrl: string | undefined = config?.url;
+        const isAuthRefreshEndpoint = requestUrl?.includes(
+            "/api/auth/refresh-token"
+        );
+        const errorCode = response?.data?.code;
 
-        // Network errors or no response
-        if (!response) {
-            return Promise.reject(error)
-        }
+        // Check if this is an authentication error that should trigger token refresh
+        const shouldRefreshToken =
+            response?.status === 401 &&
+            (errorCode === "ACCESS_TOKEN_EXPIRED" || errorCode === "ACCESS_TOKEN_INVALID");
 
-        const errorCode = response.data?.code
+        if (shouldRefreshToken) {
+            // If the refresh call itself failed with 401, redirect immediately
+            if (isAuthRefreshEndpoint) {
+                isRefreshing = false;
+                refreshSubscribers = [];
+                // Clear all cached data
+                queryClient?.clear();
+                if (typeof window !== "undefined") {
+                    window.location.href = "/login";
+                }
+                return Promise.reject(error);
+            }
 
-        // 1. Handle Token Issues (Access Token) - Attempt refresh
-        // This includes expired, invalid, AND missing access tokens
-        // as long as the refresh token might still be valid
-        const refreshableErrors = [
-            "ACCESS_TOKEN_EXPIRED",
-            "ACCESS_TOKEN_INVALID",
-            "ACCESS_TOKEN_MISSING"
-        ]
+            if (config._retry) {
+                // Already retried once, do not loop
+                queryClient?.clear();
+                if (typeof window !== "undefined") {
+                    window.location.href = "/login";
+                }
+                return Promise.reject(error);
+            }
 
-        // Skip token refresh for auth endpoints to prevent infinite loops
-        const isAuthEndpoint = originalRequest.url?.includes('/auth/login') ||
-            originalRequest.url?.includes('/auth/register') ||
-            originalRequest.url?.includes('/auth/me') ||
-            originalRequest.url?.includes('/auth/refresh')
-
-        if (
-            response.status === 401 &&
-            refreshableErrors.includes(errorCode) &&
-            !originalRequest._retry &&
-            !isAuthEndpoint // Don't refresh on auth endpoint failures
-        ) {
             if (isRefreshing) {
-                // If already refreshing, queue this request
+                // If already refreshing, subscribe to the refresh completion
                 return new Promise((resolve, reject) => {
                     subscribeTokenRefresh(() => {
-                        apiClient(originalRequest)
-                            .then(resolve)
-                            .catch(reject)
-                    })
-                })
+                        api(config).then(resolve).catch(reject);
+                    });
+                });
             }
 
-            originalRequest._retry = true
-            isRefreshing = true
+            config._retry = true;
+            isRefreshing = true;
 
             try {
-                // Perform refresh using a fresh axios instance to avoid interceptor loops
-                // and break circular dependency with authService
-                await axios.post(
-                    `${API_URL}/auth/refresh`,
-                    {},
-                    { withCredentials: true }
-                )
+                // Try to refresh the token - server will set new cookies
+                await authService.refresh();
+                isRefreshing = false;
+                onRefreshed();
 
-                // Refresh successful
-                isRefreshing = false
-                onRefreshed()
-
-                // Retry the original request
-                return apiClient(originalRequest)
+                // Retry the original request with new token
+                return api(config);
             } catch (refreshError) {
-                // Refresh failed
-                isRefreshing = false
-                refreshSubscribers = []
-                safeRedirect("/")
-                return Promise.reject(refreshError)
+                isRefreshing = false;
+                refreshSubscribers = [];
+                // Clear all cached data
+                queryClient?.clear();
+
+                // Refresh failed, redirect to login
+                if (typeof window !== "undefined") {
+                    window.location.href = "/login";
+                }
+                return Promise.reject(refreshError);
             }
         }
 
-        // 2. Handle Critical Auth Errors (Force Logout)
-        // These errors mean the refresh token is bad - no point trying to refresh
-        const criticalAuthErrors = [
-            "REFRESH_TOKEN_MISSING",
-            "REFRESH_TOKEN_EXPIRED",
-            "REFRESH_TOKEN_INVALID",
-            "USER_NOT_FOUND"
-        ]
-
-        if (response.status === 401 && criticalAuthErrors.includes(errorCode)) {
-            safeRedirect("/")
+        // For other authentication errors (missing tokens, user not found, etc.), redirect immediately
+        if (response?.status === 401 &&
+            (errorCode === "ACCESS_TOKEN_MISSING" ||
+                errorCode === "REFRESH_TOKEN_MISSING" ||
+                errorCode === "REFRESH_TOKEN_EXPIRED" ||
+                errorCode === "REFRESH_TOKEN_INVALID" ||
+                errorCode === "USER_NOT_FOUND")) {
+            // Clear all cached data
+            queryClient?.clear();
+            if (typeof window !== "undefined") {
+                window.location.href = "/login";
+            }
+        } else if (response?.status !== 401) {
+            // Show error toast for non-401 errors (e.g. 400, 403, 404, 500)
+            const errorMessage = response?.data?.message || error.message || "An unexpected error occurred";
+            toast.error(errorMessage);
         }
 
-        return Promise.reject(error)
+        return Promise.reject(error);
     }
-)
+);
+
+export default api;

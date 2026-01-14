@@ -51,10 +51,4 @@ export interface NotificationPayload {
     createdAt: Date;
 }
 
-// Legacy types for backward compatibility
-export interface TaskEventPayload {
-    taskId: string;
-    task?: unknown;
-    previousAssigneeId?: string;
-    newAssigneeId?: string;
-}
+

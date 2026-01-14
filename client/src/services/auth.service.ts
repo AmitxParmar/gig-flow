@@ -1,4 +1,4 @@
-import { apiClient } from '@/lib/api-client'
+import api from '@/lib/api-client'
 import type { RegisterDto, LoginDto, AuthResponse, User } from '@/types/auth'
 import type { ApiResponse } from '@/types/common.types'
 
@@ -12,7 +12,7 @@ export const authService = {
      * Register a new user
      */
     register: async (data: RegisterDto): Promise<AuthResponse> => {
-        const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/register', data)
+        const response = await api.post<ApiResponse<AuthResponse>>('/auth/register', data)
         return response.data.data
     },
 
@@ -21,7 +21,7 @@ export const authService = {
      * Login user
      */
     login: async (data: LoginDto): Promise<AuthResponse> => {
-        const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/login', data)
+        const response = await api.post<ApiResponse<AuthResponse>>('/auth/login', data)
         return response.data.data
     },
 
@@ -30,7 +30,7 @@ export const authService = {
      * Logout user (clears session and cookies)
      */
     logout: async (): Promise<void> => {
-        await apiClient.post('/auth/logout')
+        await api.post('/auth/logout')
     },
 
     /**
@@ -38,7 +38,7 @@ export const authService = {
      * Logout from all devices (requires auth)
      */
     logoutAll: async (): Promise<void> => {
-        await apiClient.post('/auth/logout-all')
+        await api.post('/auth/logout-all')
     },
 
     /**
@@ -46,7 +46,7 @@ export const authService = {
      * Refresh access and refresh tokens
      */
     refresh: async (): Promise<void> => {
-        await apiClient.post('/auth/refresh')
+        await api.post('/auth/refresh')
     },
 
     /**
@@ -54,7 +54,7 @@ export const authService = {
      * Get current authenticated user (requires auth)
      */
     me: async (): Promise<User> => {
-        const response = await apiClient.get<ApiResponse<User>>('/auth/me')
+        const response = await api.get<ApiResponse<User>>('/auth/me')
         console.log("loggedin user", response.data)
         return response.data.data
     },
@@ -64,7 +64,7 @@ export const authService = {
      * Update current user profile
      */
     updateProfile: async (data: { name?: string; email?: string }): Promise<User> => {
-        const response = await apiClient.patch<ApiResponse<User>>('/auth/me', data)
+        const response = await api.patch<ApiResponse<User>>('/auth/me', data)
         return response.data.data
     },
 }
