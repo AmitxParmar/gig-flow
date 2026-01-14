@@ -1,12 +1,12 @@
 
 import userRepository from './user.repository';
-import { User } from '@prisma/client';
+import { type SafeUser } from './user.repository';
 
 export default class UserService {
     /**
      * Get all users
      */
-    public async getAllUsers(search?: string, userId?: User['id']): Promise<Omit<User, 'passwordHash'>[]> {
+    public async getAllUsers(search?: string, userId?: string): Promise<SafeUser[]> {
         return userRepository.findAll(search, userId);
     }
 }

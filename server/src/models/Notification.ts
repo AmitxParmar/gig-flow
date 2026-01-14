@@ -13,7 +13,6 @@ export enum NotificationType {
 // ==================== INTERFACES ====================
 
 export interface INotification extends Document {
-    id: string;
     userId: Types.ObjectId | string;
     type: NotificationType;
     message: string;
@@ -62,36 +61,6 @@ const notificationSchema = new Schema<INotification, NotificationModel, INotific
     },
     {
         timestamps: { createdAt: true, updatedAt: false },
-        toJSON: {
-            virtuals: true,
-            transform: (_doc, ret) => {
-                return {
-                    id: ret._id.toString(),
-                    userId: ret.userId,
-                    type: ret.type,
-                    message: ret.message,
-                    isRead: ret.isRead,
-                    gigId: ret.gigId,
-                    bidId: ret.bidId,
-                    createdAt: ret.createdAt,
-                };
-            },
-        },
-        toObject: {
-            virtuals: true,
-            transform: (_doc, ret) => {
-                return {
-                    id: ret._id.toString(),
-                    userId: ret.userId,
-                    type: ret.type,
-                    message: ret.message,
-                    isRead: ret.isRead,
-                    gigId: ret.gigId,
-                    bidId: ret.bidId,
-                    createdAt: ret.createdAt,
-                };
-            },
-        },
     }
 );
 

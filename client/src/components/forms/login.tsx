@@ -103,7 +103,7 @@ export function LoginForm() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2 w-full">
+                        <div className="grid grid-cols-2 gap-2 w-full">
                             <Button
                                 type="button"
                                 variant="outline"
@@ -113,15 +113,7 @@ export function LoginForm() {
                             >
                                 Demo
                             </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full text-xs"
-                                onClick={() => form.reset({ email: 'test@test.com', password: 'test@test' })}
-                                disabled={isPending}
-                            >
-                                Test
-                            </Button>
+
                             <Button
                                 type="button"
                                 variant="outline"

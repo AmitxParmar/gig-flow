@@ -1,6 +1,7 @@
-import Gig, { IGig, GigStatus } from '@/models/Gig';
+import Gig, { IGig, GigStatus, GigQuery } from '@/models/Gig';
 import Bid from '@/models/Bid';
 import logger from '@/lib/logger';
+
 
 export interface CreateGigData {
     title: string;
@@ -8,6 +9,8 @@ export interface CreateGigData {
     budget: number;
     ownerId: string;
 }
+
+
 
 export interface UpdateGigData {
     title?: string;
@@ -19,7 +22,8 @@ export interface GigFilters {
     search?: string;
     status?: GigStatus;
     ownerId?: string;
-    page?: number;
+    excludeUserId?: string;
+    cursor?: string;
     limit?: number;
 }
 
@@ -29,8 +33,7 @@ export interface GigOwner {
     email: string;
 }
 
-export interface GigWithRelations {
-    id: string;
+export interface GigWithRelations extends IGig {
     title: string;
     description: string;
     budget: number;
@@ -48,41 +51,9 @@ export interface GigWithRelations {
 
 export interface PaginatedGigs {
     gigs: GigWithRelations[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
+    nextCursor: string | null;
 }
 
-// Helper to transform Mongoose document to GigWithRelations
-const transformGig = async (gig: any, includeBidCount = true): Promise<GigWithRelations> => {
-    const bidCount = includeBidCount ? await Bid.countDocuments({ gigId: gig._id }) : 0;
-
-    return {
-        id: gig._id?.toString() || gig.id,
-        title: gig.title,
-        description: gig.description,
-        budget: gig.budget,
-        status: gig.status,
-        ownerId: gig.ownerId?._id?.toString() || gig.ownerId?.toString(),
-        hiredFreelancerId: gig.hiredFreelancerId?._id?.toString() || gig.hiredFreelancerId?.toString() || null,
-        createdAt: gig.createdAt,
-        updatedAt: gig.updatedAt,
-        owner: gig.ownerId?._id ? {
-            id: gig.ownerId._id.toString(),
-            name: gig.ownerId.name,
-            email: gig.ownerId.email,
-        } : { id: gig.ownerId?.toString() || '', name: '', email: '' },
-        hiredFreelancer: gig.hiredFreelancerId?._id ? {
-            id: gig.hiredFreelancerId._id.toString(),
-            name: gig.hiredFreelancerId.name,
-            email: gig.hiredFreelancerId.email,
-        } : null,
-        _count: {
-            bids: bidCount,
-        },
-    };
-};
 
 class GigRepository {
     /**
@@ -100,10 +71,9 @@ class GigRepository {
 
         const populatedGig = await Gig.findById(gig._id)
             .populate('ownerId', 'name email')
-            .populate('hiredFreelancerId', 'name email')
-            .lean();
+            .populate('hiredFreelancerId', 'name email');
 
-        return transformGig(populatedGig);
+        return populatedGig as unknown as GigWithRelations;
     }
 
     /**
@@ -112,24 +82,21 @@ class GigRepository {
     async findGigById(id: string): Promise<GigWithRelations | null> {
         const gig = await Gig.findById(id)
             .populate('ownerId', 'name email')
-            .populate('hiredFreelancerId', 'name email')
-            .lean();
+            .populate('hiredFreelancerId', 'name email');
 
         if (!gig) return null;
 
-        return transformGig(gig);
+        return gig as unknown as GigWithRelations;
     }
 
     /**
      * Find all gigs with optional filtering, searching, and pagination
      */
     async findAllGigs(filters: GigFilters = {}): Promise<PaginatedGigs> {
-        const { search, status, ownerId, page = 1, limit = 10 } = filters;
-        const skip = (page - 1) * limit;
+        const { search, status, ownerId, cursor, limit = 10 } = filters;
 
         // Build query
-        const query: Record<string, any> = {};
-
+        const query: GigQuery = {};
         if (status) {
             query.status = status;
         }
@@ -138,30 +105,31 @@ class GigRepository {
             query.ownerId = ownerId;
         }
 
+        if (filters.excludeUserId) {
+            query.ownerId = { ...query.ownerId, $ne: filters.excludeUserId };
+        }
+
         if (search) {
             query.title = { $regex: search, $options: 'i' };
         }
 
-        // Execute count and find in parallel
-        const [total, gigs] = await Promise.all([
-            Gig.countDocuments(query),
-            Gig.find(query)
-                .skip(skip)
-                .limit(limit)
-                .sort({ createdAt: -1 })
-                .populate('ownerId', 'name email')
-                .populate('hiredFreelancerId', 'name email')
-                .lean(),
-        ]);
+        if (cursor) {
+            query._id = { $lt: cursor };
+        }
 
-        const transformedGigs = await Promise.all(gigs.map((gig) => transformGig(gig)));
+        const gigs = await Gig.find(query)
+            .sort({ _id: -1 })
+            .limit(limit + 1) // Fetch one extra to check for next page
+            .populate('ownerId', 'name email')
+            .populate('hiredFreelancerId', 'name email');
+
+        const hasNextPage = gigs.length > limit;
+        const edges = hasNextPage ? gigs.slice(0, -1) : gigs;
+        const nextCursor = hasNextPage ? edges[edges.length - 1]._id.toString() : null;
 
         return {
-            gigs: transformedGigs,
-            total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
+            gigs: edges as unknown as GigWithRelations[],
+            nextCursor,
         };
     }
 
@@ -177,14 +145,13 @@ class GigRepository {
             { new: true }
         )
             .populate('ownerId', 'name email')
-            .populate('hiredFreelancerId', 'name email')
-            .lean();
+            .populate('hiredFreelancerId', 'name email');
 
         if (!gig) {
             throw new Error('Gig not found');
         }
 
-        return transformGig(gig);
+        return gig as unknown as GigWithRelations;
     }
 
     /**
@@ -238,10 +205,9 @@ class GigRepository {
         const gigs = await Gig.find({ ownerId })
             .sort({ createdAt: -1 })
             .populate('ownerId', 'name email')
-            .populate('hiredFreelancerId', 'name email')
-            .lean();
+            .populate('hiredFreelancerId', 'name email');
 
-        return Promise.all(gigs.map((gig) => transformGig(gig)));
+        return gigs as unknown as GigWithRelations[];
     }
 }
 

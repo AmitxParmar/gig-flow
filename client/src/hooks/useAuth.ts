@@ -42,9 +42,11 @@ export function useLogin() {
  * @returns A mutation object for user logout.
  */
 export function useLogout() {
+    const queryClient = useQueryClient()
     return useMutation({
         mutationFn: () => authService.logout(),
         onSuccess: () => {
+            queryClient.clear()
             console.log('Logout successful')
         },
         onError: (error: any) => {

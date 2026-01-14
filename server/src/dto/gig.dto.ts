@@ -1,4 +1,3 @@
-import { GigStatus } from '@prisma/client';
 import {
     IsString,
     IsNotEmpty,
@@ -11,6 +10,7 @@ import {
     Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { GigStatus } from '@/models';
 
 /**
  * DTO for creating a new gig
@@ -74,6 +74,10 @@ export class GigQueryDto {
     @Min(1)
     @Type(() => Number)
     page?: number;
+
+    @IsOptional()
+    @IsString()
+    cursor?: string;
 
     @IsOptional()
     @IsNumber()

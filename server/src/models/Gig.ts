@@ -10,7 +10,6 @@ export enum GigStatus {
 // ==================== INTERFACES ====================
 
 export interface IGig extends Document {
-    id: string;
     title: string;
     description: string;
     budget: number;
@@ -20,6 +19,9 @@ export interface IGig extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
+
+export type GigQuery = Partial<{ [K in keyof IGig]: any }>;
+
 
 export interface IGigMethods { }
 
@@ -61,38 +63,6 @@ const gigSchema = new Schema<IGig, GigModel, IGigMethods>(
     },
     {
         timestamps: true,
-        toJSON: {
-            virtuals: true,
-            transform: (_doc, ret) => {
-                return {
-                    id: ret._id.toString(),
-                    title: ret.title,
-                    description: ret.description,
-                    budget: ret.budget,
-                    status: ret.status,
-                    ownerId: ret.ownerId,
-                    hiredFreelancerId: ret.hiredFreelancerId,
-                    createdAt: ret.createdAt,
-                    updatedAt: ret.updatedAt,
-                };
-            },
-        },
-        toObject: {
-            virtuals: true,
-            transform: (_doc, ret) => {
-                return {
-                    id: ret._id.toString(),
-                    title: ret.title,
-                    description: ret.description,
-                    budget: ret.budget,
-                    status: ret.status,
-                    ownerId: ret.ownerId,
-                    hiredFreelancerId: ret.hiredFreelancerId,
-                    createdAt: ret.createdAt,
-                    updatedAt: ret.updatedAt,
-                };
-            },
-        },
     }
 );
 

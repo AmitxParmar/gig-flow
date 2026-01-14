@@ -1,5 +1,13 @@
-import { type User } from '@prisma/client';
 import { type Request } from 'express';
+
+// User type for Mongoose - matches the User model transforms
+export interface SafeUser {
+    _id: string;
+    name: string;
+    email: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 export interface JwtPayload {
     userId: string;
@@ -14,7 +22,7 @@ export interface TokenPair {
 }
 
 export interface AuthRequest extends Request {
-    user?: Omit<User, 'passwordHash'>;
+    user?: SafeUser;
 }
 
 export interface SessionData {
@@ -24,5 +32,3 @@ export interface SessionData {
     ipAddress?: string;
     expiresAt: Date;
 }
-
-export type SafeUser = Omit<User, 'passwordHash'>;

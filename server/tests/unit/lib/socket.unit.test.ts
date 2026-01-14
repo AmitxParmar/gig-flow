@@ -1,5 +1,4 @@
 import { jest } from '@jest/globals';
-import { type Gig } from '@prisma/client';
 
 // 1. Define mock objects
 const mockLogger = {
@@ -57,18 +56,21 @@ jest.mock('socket.io', () => {
 // 3. Import the service under test
 import SocketService from '@/lib/socket';
 
+import { GigStatus, IGig } from '@/models/Gig';
+import { ObjectId, Schema } from 'mongoose';
+
 describe('[Unit] - SocketService', () => {
-    const mockGig: Gig = {
-        id: 'gig-123',
+    const mockGig = {
+        _id: 'gig-123',
         title: 'Test Gig',
         description: 'Test Description',
         budget: 500,
-        status: 'OPEN',
+        status: GigStatus.OPEN,
         ownerId: 'user-1',
         hiredFreelancerId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-    };
+    } as unknown as IGig;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -96,7 +98,7 @@ describe('[Unit] - SocketService', () => {
 
     describe('emitGigCreated', () => {
         it('should emit gig:created event globally', () => {
-            const payload = { gigId: mockGig.id, gig: mockGig };
+            const payload = { gigId: 'gig-123', gig: mockGig };
             SocketService.emitGigCreated(payload);
 
             expect(mockEmit).toHaveBeenCalledWith('gig:created', payload);
@@ -105,7 +107,7 @@ describe('[Unit] - SocketService', () => {
 
     describe('emitGigUpdated', () => {
         it('should emit gig:updated event globally', () => {
-            const payload = { gigId: mockGig.id, gig: mockGig };
+            const payload = { gigId: 'gig-123', gig: mockGig };
             SocketService.emitGigUpdated(payload);
 
             expect(mockEmit).toHaveBeenCalledWith('gig:updated', payload);

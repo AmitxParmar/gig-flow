@@ -5,15 +5,29 @@ import { HttpBadRequestError } from '@/lib/errors';
 import logger from '@/lib/logger';
 
 export default class RequestValidator {
-  static validate = <T>(classInstance: ClassConstructor<T>) => {
+  static validate = <T>(
+    classInstance: ClassConstructor<T>,
+    source: 'body' | 'query' | 'params' = 'body'
+  ) => {
     return async (req: Request, _res: Response, next: NextFunction) => {
       const validationErrorText = 'Request validation failed!';
       try {
-        const convertedObject = plainToInstance(classInstance, req.body);
+        const convertedObject = plainToInstance(classInstance, req[source]);
         const errors = await validate(
           convertedObject as Record<string, unknown>
         );
         if (!errors.length) {
+          // Assign converted object back to request to persist type transformations
+          if (source === 'body') {
+            req.body = convertedObject;
+          } else {
+            // For query and params, properties might be read-only (getters), so we mutate the object
+            const target = req[source];
+            if (target && typeof target === 'object') {
+              Object.keys(target).forEach((key) => delete target[key]);
+              Object.assign(target, convertedObject);
+            }
+          }
           next();
           return;
         }

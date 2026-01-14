@@ -27,16 +27,9 @@ export class UserRepository {
         }
 
         const users = await User.find(query)
-            .select('-passwordHash')
-            .lean();
+            .select('-passwordHash');
 
-        return users.map((user) => ({
-            id: user._id.toString(),
-            name: user.name,
-            email: user.email,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt,
-        }));
+        return users as unknown as SafeUser[];
     }
 }
 

@@ -10,12 +10,13 @@ import { Bell, Check, Loader2 } from "lucide-react"
 import { useNotifications, useUnreadCount, useMarkAllAsRead, useMarkAsRead } from "@/hooks/useNotification"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatDistanceToNow } from "date-fns"
+import type { Notification } from "@/types/notification"
 
 const NotificationItem = memo(({
     notification,
     onMarkAsRead
 }: {
-    notification: any,
+    notification: Notification,
     onMarkAsRead: (id: string) => void
 }) => {
     const timeAgo = useMemo(() =>
@@ -25,9 +26,9 @@ const NotificationItem = memo(({
 
     const handleClick = useCallback(() => {
         if (!notification.isRead) {
-            onMarkAsRead(notification.id)
+            onMarkAsRead(notification._id)
         }
-    }, [notification.isRead, notification.id, onMarkAsRead])
+    }, [notification.isRead, notification._id, onMarkAsRead])
 
     return (
         <div
@@ -112,7 +113,7 @@ export const NotificationsPopover = memo(function NotificationsPopover() {
                         <div className="divide-y">
                             {notifications?.map((notification) => (
                                 <NotificationItem
-                                    key={notification.id}
+                                    key={notification._id}
                                     notification={notification}
                                     onMarkAsRead={handleMarkAsRead}
                                 />

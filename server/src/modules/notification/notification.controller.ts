@@ -4,7 +4,7 @@ import NotificationService from './notification.service';
 import { type CustomResponse } from '@/types/common.type';
 import { type AuthRequest } from '@/types/auth.type';
 import Api from '@/lib/api';
-import { type Notification } from '@prisma/client';
+import { type NotificationDocument } from './notification.repository';
 
 export default class NotificationController extends Api {
     private readonly notificationService = new NotificationService();
@@ -14,11 +14,11 @@ export default class NotificationController extends Api {
      */
     public getMyNotifications = async (
         req: AuthRequest,
-        res: CustomResponse<Notification[]>,
+        res: CustomResponse<NotificationDocument[]>,
         next: NextFunction
     ) => {
         try {
-            const notifications = await this.notificationService.getMyNotifications(req.user!.id);
+            const notifications = await this.notificationService.getMyNotifications(req.user!._id);
             this.send(res, notifications, HttpStatusCode.Ok, 'Notifications retrieved successfully');
         } catch (e) {
             next(e);
@@ -34,7 +34,7 @@ export default class NotificationController extends Api {
         next: NextFunction
     ) => {
         try {
-            const count = await this.notificationService.getUnreadCount(req.user!.id);
+            const count = await this.notificationService.getUnreadCount(req.user!._id);
             this.send(res, count, HttpStatusCode.Ok, 'Unread count retrieved successfully');
         } catch (e) {
             next(e);
@@ -46,11 +46,11 @@ export default class NotificationController extends Api {
      */
     public markAsRead = async (
         req: AuthRequest,
-        res: CustomResponse<Notification>,
+        res: CustomResponse<NotificationDocument>,
         next: NextFunction
     ) => {
         try {
-            const notification = await this.notificationService.markAsRead(req.params.id, req.user!.id);
+            const notification = await this.notificationService.markAsRead(req.params.id, req.user!._id);
             this.send(res, notification, HttpStatusCode.Ok, 'Notification marked as read');
         } catch (e) {
             next(e);
@@ -66,7 +66,7 @@ export default class NotificationController extends Api {
         next: NextFunction
     ) => {
         try {
-            await this.notificationService.markAllAsRead(req.user!.id);
+            await this.notificationService.markAllAsRead(req.user!._id);
             this.send(res, null, HttpStatusCode.Ok, 'All notifications marked as read');
         } catch (e) {
             next(e);

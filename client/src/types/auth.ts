@@ -18,7 +18,7 @@ export interface UpdateProfileDto {
 
 // User type
 export interface User {
-    id: string
+    _id: string
     email: string
     name: string
     createdAt: string

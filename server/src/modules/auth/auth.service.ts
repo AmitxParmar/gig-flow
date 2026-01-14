@@ -5,6 +5,7 @@ import { type TokenPair, type SafeUser } from '@/types/auth.type';
 import { HttpUnAuthorizedError, HttpBadRequestError } from '@/lib/errors';
 import logger from '@/lib/logger';
 
+
 export interface RegisterInput {
   email: string;
   name: string;
@@ -46,15 +47,21 @@ export default class AuthService {
       passwordHash,
     });
 
+    logger.info(`[AuthService.register] User created`, {
+      _id: user._id,
+      hasId: 'id' in user,
+      keys: Object.keys(user)
+    });
+
     // Generate tokens
     const tokens = jwtService.generateTokenPair({
-      userId: user.id,
+      userId: user._id,
       email: user.email,
     });
 
     // Create session
     await authRepository.createSession({
-      userId: user.id,
+      userId: user._id,
       refreshToken: tokens.refreshToken,
       userAgent,
       ipAddress,
@@ -87,13 +94,13 @@ export default class AuthService {
 
     // Generate tokens
     const tokens = jwtService.generateTokenPair({
-      userId: user.id!,
+      userId: user._id!,
       email: user.email,
     });
 
     // Create session
     await authRepository.createSession({
-      userId: user.id!,
+      userId: user._id!,
       refreshToken: tokens.refreshToken,
       userAgent,
       ipAddress,
@@ -102,7 +109,7 @@ export default class AuthService {
 
     // Return user without password
     const safeUser: SafeUser = {
-      id: user.id!,
+      _id: user._id!,
       email: user.email,
       name: user.name,
       createdAt: user.createdAt,
@@ -189,7 +196,7 @@ export default class AuthService {
     // Check if email is being updated and if it's already taken
     if (data.email) {
       const existingUser = await authRepository.findUserByEmail(data.email);
-      if (existingUser && existingUser.id !== userId) {
+      if (existingUser && existingUser._id.toString() !== userId) {
         throw new HttpBadRequestError('Profile update failed', [
           'Email is already in use by another account',
         ]);

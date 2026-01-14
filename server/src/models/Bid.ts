@@ -11,7 +11,7 @@ export enum BidStatus {
 // ==================== INTERFACES ====================
 
 export interface IBid extends Document {
-    id: string;
+    _id: Types.ObjectId;
     message: string;
     price: number;
     status: BidStatus;
@@ -56,36 +56,6 @@ const bidSchema = new Schema<IBid, BidModel, IBidMethods>(
     },
     {
         timestamps: true,
-        toJSON: {
-            virtuals: true,
-            transform: (_doc, ret) => {
-                return {
-                    id: ret._id.toString(),
-                    message: ret.message,
-                    price: ret.price,
-                    status: ret.status,
-                    gigId: ret.gigId,
-                    freelancerId: ret.freelancerId,
-                    createdAt: ret.createdAt,
-                    updatedAt: ret.updatedAt,
-                };
-            },
-        },
-        toObject: {
-            virtuals: true,
-            transform: (_doc, ret) => {
-                return {
-                    id: ret._id.toString(),
-                    message: ret.message,
-                    price: ret.price,
-                    status: ret.status,
-                    gigId: ret.gigId,
-                    freelancerId: ret.freelancerId,
-                    createdAt: ret.createdAt,
-                    updatedAt: ret.updatedAt,
-                };
-            },
-        },
     }
 );
 

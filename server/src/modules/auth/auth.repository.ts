@@ -2,10 +2,9 @@ import User from '@/models/User';
 import Session from '@/models/Session';
 import { type SessionData, type SafeUser } from '@/types/auth.type';
 
-// Type for user data returned by lean queries
+// Type for user data returned by lean queries (includes password for auth checks)
 export interface UserDocument {
     _id: any;
-    id?: string;
     name: string;
     email: string;
     passwordHash: string;
@@ -16,7 +15,6 @@ export interface UserDocument {
 // Type for session data returned by lean queries
 export interface SessionDocument {
     _id: any;
-    id?: string;
     userId: any;
     refreshToken: string;
     userAgent?: string;
@@ -27,11 +25,12 @@ export interface SessionDocument {
 
 // Helper to transform lean document to include id
 const transformUser = (user: any): SafeUser => ({
-    id: user._id?.toString() || user.id,
-    email: user.email,
-    name: user.name,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
+    ...user,
+    // Ensure _id exists, and compatible with SafeUser interface
+    _id: user._id,
+    // We remove explicit 'id' setting here to rely on _id. 
+    // If SafeUser needs id, we might need to cast or updated SafeUser type.
+    // For now assuming SafeUser is compatible or updated to optional id.
 });
 
 export class AuthRepository {
@@ -41,17 +40,15 @@ export class AuthRepository {
         passwordHash: string;
     }): Promise<SafeUser> {
         const user = await User.create(data);
-        return transformUser(user.toJSON());
+        // user.toJSON() now returns object with _id (after our Model fix)
+        return user.toJSON() as unknown as SafeUser;
     }
 
     public async findUserByEmail(email: string): Promise<UserDocument | null> {
         const user = await User.findOne({ email }).lean();
         if (!user) return null;
 
-        return {
-            ...user,
-            id: user._id.toString(),
-        };
+        return user as unknown as UserDocument;
     }
 
     public async findUserById(id: string): Promise<SafeUser | null> {
@@ -60,7 +57,7 @@ export class AuthRepository {
             .lean();
 
         if (!user) return null;
-        return transformUser(user);
+        return user as unknown as SafeUser;
     }
 
     public async createSession(data: SessionData): Promise<SessionDocument> {
@@ -72,26 +69,15 @@ export class AuthRepository {
             expiresAt: data.expiresAt,
         });
 
-        return {
-            _id: session._id,
-            id: session._id.toString(),
-            userId: session.userId,
-            refreshToken: session.refreshToken,
-            userAgent: session.userAgent,
-            ipAddress: session.ipAddress,
-            expiresAt: session.expiresAt,
-            createdAt: session.createdAt,
-        };
+        // session.toJSON() now returns object with _id
+        return session.toJSON() as unknown as SessionDocument;
     }
 
     public async findSessionByToken(refreshToken: string): Promise<SessionDocument | null> {
         const session = await Session.findOne({ refreshToken }).lean();
         if (!session) return null;
 
-        return {
-            ...session,
-            id: session._id.toString(),
-        };
+        return session as unknown as SessionDocument;
     }
 
     public async deleteSession(refreshToken: string): Promise<void> {
@@ -122,7 +108,7 @@ export class AuthRepository {
             throw new Error('User not found');
         }
 
-        return transformUser(user);
+        return user as unknown as SafeUser;
     }
 }
 

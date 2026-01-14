@@ -1,4 +1,4 @@
-import type { Task } from './task'
+import type { Gig } from './gig'
 
 // Socket Events enum matching backend
 export enum SocketEvents {
@@ -6,33 +6,37 @@ export enum SocketEvents {
     CONNECTION = 'connection',
     DISCONNECT = 'disconnect',
 
-    // Task events
-    TASK_CREATED = 'task:created',
-    TASK_UPDATED = 'task:updated',
-    TASK_DELETED = 'task:deleted',
+    // Gig events
+    GIG_CREATED = 'gig:created',
+    GIG_UPDATED = 'gig:updated',
+    GIG_DELETED = 'gig:deleted',
+
+    // Bid events
+    BID_RECEIVED = 'bid:received',
+    BID_HIRED = 'bid:hired',
+    BID_REJECTED = 'bid:rejected',
 
     // Notification events
     NOTIFICATION = 'notification',
-    TASK_ASSIGNED = 'task:assigned',
 
     // Room events
     JOIN_ROOM = 'room:join',
     LEAVE_ROOM = 'room:leave',
 }
 
-// Task Event Payload
-export interface TaskEventPayload {
-    taskId: string
-    task?: Task
-    previousAssigneeId?: string
-    newAssigneeId?: string
+// Gig Event Payload
+export interface GigEventPayload {
+    gigId: string
+    gig?: Gig
+    previousAssigneeId?: string // owner/hired freelancer logic if needed
+    hiredFreelancerId?: string
 }
 
 // Notification Payload
 export interface NotificationPayload {
-    id: string
+    _id: string
     type: string
     message: string
-    taskId?: string
+    gigId?: string
     createdAt: Date
 }

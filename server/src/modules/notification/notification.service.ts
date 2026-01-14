@@ -63,7 +63,7 @@ export default class NotificationService {
 
             // 2. Emit Real-time Notification
             socketService.sendNotificationToUser(userId, {
-                id: notification.id,
+                _id: notification._id,
                 type: notification.type,
                 message: notification.message,
                 gigId: notification.gigId || null,

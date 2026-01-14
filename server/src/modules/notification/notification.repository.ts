@@ -9,7 +9,6 @@ export interface CreateNotificationData {
 }
 
 export interface NotificationDocument {
-    id: string;
     _id?: any;
     userId: string;
     type: NotificationType;
@@ -22,28 +21,12 @@ export interface NotificationDocument {
 
 export interface NotificationWithGig extends NotificationDocument {
     gig?: {
-        id: string;
+        _id: string;
         title: string;
     } | null;
 }
 
-// Helper to transform notification
-const transformNotification = (notification: any): NotificationWithGig => {
-    return {
-        id: notification._id?.toString() || notification.id,
-        userId: notification.userId?.toString(),
-        type: notification.type,
-        message: notification.message,
-        isRead: notification.isRead,
-        gigId: notification.gigId?._id?.toString() || notification.gigId?.toString() || null,
-        bidId: notification.bidId?.toString() || null,
-        createdAt: notification.createdAt,
-        gig: notification.gigId?._id ? {
-            id: notification.gigId._id.toString(),
-            title: notification.gigId.title,
-        } : null,
-    };
-};
+
 
 export class NotificationRepository {
     /**
@@ -58,17 +41,7 @@ export class NotificationRepository {
             bidId: data.bidId || null,
         });
 
-        return {
-            id: notification._id.toString(),
-            _id: notification._id,
-            userId: notification.userId.toString(),
-            type: notification.type,
-            message: notification.message,
-            isRead: notification.isRead,
-            gigId: notification.gigId?.toString() || null,
-            bidId: notification.bidId?.toString() || null,
-            createdAt: notification.createdAt,
-        };
+        return notification as unknown as NotificationDocument;
     }
 
     /**
@@ -80,7 +53,7 @@ export class NotificationRepository {
             .populate('gigId', 'title')
             .lean();
 
-        return notifications.map(transformNotification);
+        return notifications as unknown as NotificationWithGig[];
     }
 
     /**
@@ -101,23 +74,13 @@ export class NotificationRepository {
             { _id: id, userId },
             { $set: { isRead: true } },
             { new: true }
-        ).lean();
+        );
 
         if (!notification) {
             throw new Error('Notification not found or access denied');
         }
 
-        return {
-            id: notification._id.toString(),
-            _id: notification._id,
-            userId: notification.userId.toString(),
-            type: notification.type,
-            message: notification.message,
-            isRead: notification.isRead,
-            gigId: notification.gigId?.toString() || null,
-            bidId: notification.bidId?.toString() || null,
-            createdAt: notification.createdAt,
-        };
+        return notification as unknown as NotificationDocument;
     }
 
     /**

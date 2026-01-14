@@ -1,25 +1,17 @@
-import { Suspense, lazy } from "react"
-import { useLocation } from "@tanstack/react-router"
+import { Suspense } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { MainSidebar } from "./MainSidebar"
+import { MainSidebar } from "./main-sidebar"
 import { cn } from "@/lib/utils"
-// Import custom useMediaQuery if configured with alias, otherwise relative
 import { useMediaQuery } from "@/hooks/useMediaQuery"
 
-const SettingsSidebar = lazy(() =>
-    import("./SettingsSidebar").then(module => ({ default: module.SettingsSidebar }))
-)
 
 interface WrapperProps {
     className?: string
 }
 
 export function DashboardSidebarWrapper({ className }: WrapperProps) {
-    const { pathname } = useLocation()
     const isMobile = useMediaQuery("(max-width: 768px)")
 
-    // Check if we are in a profile/settings context
-    const isProfilePage = pathname.startsWith("/dashboard/profile") || pathname.startsWith("/dashboard/settings")
 
     if (isMobile) {
         return (
@@ -29,10 +21,7 @@ export function DashboardSidebarWrapper({ className }: WrapperProps) {
             )}>
                 <div className="w-full h-full px-2 flex items-center">
                     <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted/20" />}>
-                        {isProfilePage
-                            ? <SettingsSidebar isMobile={isMobile} />
-                            : <MainSidebar isMobile={isMobile} />
-                        }
+                        <MainSidebar isMobile={isMobile} />
                     </Suspense>
                 </div>
             </div>
@@ -43,12 +32,7 @@ export function DashboardSidebarWrapper({ className }: WrapperProps) {
     return (
         <Card className={cn("hidden lg:block fixed left-4 top-24 bottom-4 w-64 rounded-4xl border-none shadow-lg bg-card/50 backdrop-blur-sm z-40 overflow-hidden", className)}>
             <CardContent className="p-4 h-full overflow-y-auto scrollbar-none">
-
-                {isProfilePage
-                    ? <SettingsSidebar isMobile={false} />
-                    : <MainSidebar isMobile={false} />
-                }
-
+                <MainSidebar />
             </CardContent>
         </Card>
     )

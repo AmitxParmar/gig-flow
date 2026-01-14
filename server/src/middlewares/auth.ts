@@ -40,3 +40,29 @@ export const verifyAuthToken = async (
     next(error);
   }
 };
+
+export const optionalAuth = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const accessToken = req.cookies?.access_token;
+    if (!accessToken) {
+      return next();
+    }
+
+    const result = jwtService.verifyAccessTokenDetailed(accessToken);
+    if (!result.valid) {
+      return next();
+    }
+
+    const user = await authRepository.findUserById(result.payload.userId);
+    if (user) {
+      req.user = user;
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+};

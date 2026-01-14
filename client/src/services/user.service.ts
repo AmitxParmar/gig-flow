@@ -1,7 +1,7 @@
 
-import { apiClient } from '@/lib/api-client'
+import api from '@/lib/api-client'
 import type { ApiResponse } from '@/types/common.types'
-import type { User } from '@/types/task'
+import type { User } from '@/types/auth'
 
 
 
@@ -12,7 +12,7 @@ export const userService = {
 
     getAll: async (search?: string): Promise<User[]> => {
         const params = search ? { search } : undefined
-        const response = await apiClient.get<ApiResponse<User[]>>('/users', { params })
+        const response = await api.get<ApiResponse<User[]>>('/users', { params })
         return response.data.data
     },
 }

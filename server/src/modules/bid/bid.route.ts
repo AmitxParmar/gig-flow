@@ -82,7 +82,7 @@ router.get(
  *             properties:
  *               gigId:
  *                 type: string
- *                 format: uuid
+ *                 description: MongoDB ObjectId
  *               message:
  *                 type: string
  *                 minLength: 10

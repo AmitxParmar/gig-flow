@@ -43,34 +43,6 @@ const sessionSchema = new Schema<ISession, SessionModel, ISessionMethods>(
     },
     {
         timestamps: { createdAt: true, updatedAt: false },
-        toJSON: {
-            virtuals: true,
-            transform: (_doc, ret) => {
-                return {
-                    id: ret._id.toString(),
-                    userId: ret.userId,
-                    refreshToken: ret.refreshToken,
-                    userAgent: ret.userAgent,
-                    ipAddress: ret.ipAddress,
-                    expiresAt: ret.expiresAt,
-                    createdAt: ret.createdAt,
-                };
-            },
-        },
-        toObject: {
-            virtuals: true,
-            transform: (_doc, ret) => {
-                return {
-                    id: ret._id.toString(),
-                    userId: ret.userId,
-                    refreshToken: ret.refreshToken,
-                    userAgent: ret.userAgent,
-                    ipAddress: ret.ipAddress,
-                    expiresAt: ret.expiresAt,
-                    createdAt: ret.createdAt,
-                };
-            },
-        },
     }
 );
 

@@ -81,7 +81,7 @@ class SocketService {
      * Handles new socket connections
      */
     private handleConnection(socket: AuthenticatedSocket): void {
-        const userId = socket.user?.id;
+        const userId = socket.user?._id;
         logger.info(`User connected: ${userId}`);
 
         // Join user's personal room for targeted notifications

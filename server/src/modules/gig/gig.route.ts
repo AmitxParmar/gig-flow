@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import gigController from './gig.controller';
-import { verifyAuthToken } from '@/middlewares/auth';
+import { verifyAuthToken, optionalAuth } from '@/middlewares/auth';
 import RequestValidator from '@/middlewares/request-validator';
 import { CreateGigDto, UpdateGigDto, GigQueryDto } from '@/dto/gig.dto';
 
@@ -44,7 +44,8 @@ const router: Router = Router();
  */
 router.get(
     '/',
-    RequestValidator.validate(GigQueryDto),
+    optionalAuth,
+    RequestValidator.validate(GigQueryDto, 'query'),
     gigController.getGigs.bind(gigController)
 );
 
@@ -67,6 +68,7 @@ router.get(
 router.get(
     '/my',
     verifyAuthToken,
+    RequestValidator.validate(GigQueryDto, 'query'),
     gigController.getMyGigs.bind(gigController)
 );
 

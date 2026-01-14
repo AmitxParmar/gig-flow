@@ -43,7 +43,7 @@ export interface BidEventPayload {
 }
 
 export interface NotificationPayload {
-    id: string;
+    _id: string;
     type: NotificationType;
     message: string;
     gigId?: string | null;

@@ -6,7 +6,7 @@ import {
     IsOptional,
     MaxLength,
     MinLength,
-    IsUUID,
+    IsMongoId,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -16,7 +16,7 @@ import { Type } from 'class-transformer';
 export class CreateBidDto {
     @IsString()
     @IsNotEmpty({ message: 'Gig ID is required' })
-    @IsUUID('4', { message: 'Invalid Gig ID format' })
+    @IsMongoId({ message: 'Invalid Gig ID format' })
     gigId: string;
 
     @IsString()

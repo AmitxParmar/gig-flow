@@ -79,7 +79,7 @@ export default class AuthController extends Api {
   ) => {
     try {
       if (req.user) {
-        await this.authService.logoutAll(req.user.id);
+        await this.authService.logoutAll(req.user._id);
       }
 
       cookieService.clearTokenCookies(res);
@@ -136,7 +136,7 @@ export default class AuthController extends Api {
         });
       }
 
-      const user = await this.authService.getCurrentUser(req.user.id);
+      const user = await this.authService.getCurrentUser(req.user._id);
       this.send(res, user, HttpStatusCode.Ok, 'User retrieved successfully');
     } catch (e) {
       next(e);
@@ -156,7 +156,7 @@ export default class AuthController extends Api {
         });
       }
 
-      const user = await this.authService.updateProfile(req.user.id, req.body);
+      const user = await this.authService.updateProfile(req.user._id, req.body);
       this.send(res, user, HttpStatusCode.Ok, 'Profile updated successfully');
     } catch (e) {
       next(e);

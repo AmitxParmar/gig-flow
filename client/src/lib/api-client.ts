@@ -4,7 +4,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000",
+    baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1/development",
     withCredentials: true, // important for cookies
 });
 
@@ -49,8 +49,8 @@ api.interceptors.response.use(
                 refreshSubscribers = [];
                 // Clear all cached data
                 queryClient?.clear();
-                if (typeof window !== "undefined") {
-                    window.location.href = "/login";
+                if (typeof window !== "undefined" && window.location.pathname !== '/' && window.location.pathname !== '/register') {
+                    window.location.href = "/";
                 }
                 return Promise.reject(error);
             }
@@ -58,8 +58,8 @@ api.interceptors.response.use(
             if (config._retry) {
                 // Already retried once, do not loop
                 queryClient?.clear();
-                if (typeof window !== "undefined") {
-                    window.location.href = "/login";
+                if (typeof window !== "undefined" && window.location.pathname !== '/' && window.location.pathname !== '/register') {
+                    window.location.href = "/";
                 }
                 return Promise.reject(error);
             }
@@ -91,8 +91,8 @@ api.interceptors.response.use(
                 queryClient?.clear();
 
                 // Refresh failed, redirect to login
-                if (typeof window !== "undefined") {
-                    window.location.href = "/login";
+                if (typeof window !== "undefined" && window.location.pathname !== '/' && window.location.pathname !== '/register') {
+                    window.location.href = "/";
                 }
                 return Promise.reject(refreshError);
             }
@@ -107,8 +107,8 @@ api.interceptors.response.use(
                 errorCode === "USER_NOT_FOUND")) {
             // Clear all cached data
             queryClient?.clear();
-            if (typeof window !== "undefined") {
-                window.location.href = "/login";
+            if (typeof window !== "undefined" && window.location.pathname !== '/' && window.location.pathname !== '/register') {
+                window.location.href = "/";
             }
         } else if (response?.status !== 401) {
             // Show error toast for non-401 errors (e.g. 400, 403, 404, 500)

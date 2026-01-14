@@ -13,7 +13,7 @@ notification.use(verifyAuthToken);
  * @typedef {object} Notification
  * @property {string} id - Notification ID
  * @property {string} userId - User ID
- * @property {string} taskId - Related Task ID
+ * @property {string} bidId - Related bid ID
  * @property {string} type - Notification Type (TASK_ASSIGNED)
  * @property {string} message - Notification Message
  * @property {boolean} isRead - Is read status

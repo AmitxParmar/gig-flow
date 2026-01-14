@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { socketClient } from '@/lib/socket'
-import { SocketEvents, type TaskEventPayload, type NotificationPayload } from '@/types/socket'
-import { taskKeys } from './useTasks'
-import type { Task } from '@/types/task'
+import { SocketEvents, type GigEventPayload, type NotificationPayload } from '@/types/socket'
+import { gigKeys } from './useGigs'
+import type { Gig } from '@/types/gig'
 
 /**
  * Hook to manage socket connection
@@ -43,76 +43,80 @@ export function useSocket(token?: string) {
 }
 
 /**
- * Hook to listen to task events and update cache
+ * Hook to listen to gig events and update cache
  */
-export function useTaskEvents() {
+export function useGigEvents() {
     const queryClient = useQueryClient()
 
     useEffect(() => {
         const socket = socketClient.getSocket()
         if (!socket) return
 
-        // Handle task created
-        const handleTaskCreated = (payload: TaskEventPayload) => {
-            console.log('Task created event:', payload)
-            // Invalidate task lists to refetch
-            queryClient.invalidateQueries({ queryKey: taskKeys.lists() })
+        // Handle gig created
+        const handleGigCreated = (payload: GigEventPayload) => {
+            console.log('Gig created event:', payload)
+            // Invalidate gig lists to refetch
+            queryClient.invalidateQueries({ queryKey: gigKeys.lists() })
         }
 
-        // Handle task updated
-        const handleTaskUpdated = (payload: TaskEventPayload) => {
-            console.log('Task updated event:', payload)
-            if (payload.task) {
-                // Update specific task in cache
-                queryClient.setQueryData<Task>(
-                    taskKeys.detail(payload.taskId),
-                    payload.task as Task
+        // Handle gig updated
+        const handleGigUpdated = (payload: GigEventPayload) => {
+            console.log('Gig updated event:', payload)
+            if (payload.gig) {
+                // Update specific gig in cache
+                queryClient.setQueryData<Gig>(
+                    gigKeys.detail(payload.gigId),
+                    payload.gig as Gig
                 )
             }
             // Invalidate lists to refetch
-            queryClient.invalidateQueries({ queryKey: taskKeys.lists() })
+            queryClient.invalidateQueries({ queryKey: gigKeys.lists() })
+            // Invalidate My Gigs
+            queryClient.invalidateQueries({ queryKey: gigKeys.my })
         }
 
-        // Handle task deleted
-        const handleTaskDeleted = (payload: { taskId: string }) => {
-            console.log('Task deleted event:', payload)
+        // Handle gig deleted
+        const handleGigDeleted = (payload: { gigId: string }) => {
+            console.log('Gig deleted event:', payload)
             // Remove from cache
-            queryClient.removeQueries({ queryKey: taskKeys.detail(payload.taskId) })
+            queryClient.removeQueries({ queryKey: gigKeys.detail(payload.gigId) })
             // Invalidate lists
-            queryClient.invalidateQueries({ queryKey: taskKeys.lists() })
+            queryClient.invalidateQueries({ queryKey: gigKeys.lists() })
+            queryClient.invalidateQueries({ queryKey: gigKeys.my })
         }
 
-        socket.on(SocketEvents.TASK_CREATED, handleTaskCreated)
-        socket.on(SocketEvents.TASK_UPDATED, handleTaskUpdated)
-        socket.on(SocketEvents.TASK_DELETED, handleTaskDeleted)
+        socket.on(SocketEvents.GIG_CREATED, handleGigCreated)
+        socket.on(SocketEvents.GIG_UPDATED, handleGigUpdated)
+        socket.on(SocketEvents.GIG_DELETED, handleGigDeleted)
 
         return () => {
-            socket.off(SocketEvents.TASK_CREATED, handleTaskCreated)
-            socket.off(SocketEvents.TASK_UPDATED, handleTaskUpdated)
-            socket.off(SocketEvents.TASK_DELETED, handleTaskDeleted)
+            socket.off(SocketEvents.GIG_CREATED, handleGigCreated)
+            socket.off(SocketEvents.GIG_UPDATED, handleGigUpdated)
+            socket.off(SocketEvents.GIG_DELETED, handleGigDeleted)
         }
     }, [queryClient])
 }
 
 /**
- * Hook to listen to task assignment events
+ * Hook to listen to gig assignment (hiring) events
  */
-export function useTaskAssigned(onTaskAssigned?: (payload: TaskEventPayload) => void) {
+export function useGigHired(onGigHired?: (payload: GigEventPayload) => void) {
     useEffect(() => {
         const socket = socketClient.getSocket()
         if (!socket) return
 
-        const handleTaskAssigned = (payload: TaskEventPayload) => {
-            console.log('Task assigned to you:', payload)
-            onTaskAssigned?.(payload)
+        const handleGigHired = (payload: GigEventPayload) => {
+            console.log('Gig hired/assigned:', payload)
+            onGigHired?.(payload)
         }
 
-        socket.on(SocketEvents.TASK_ASSIGNED, handleTaskAssigned)
+        // Using BID_HIRED as proxy for assignment if needed, though payload types match loosely
+        socket.on(SocketEvents.BID_HIRED, handleGigHired)
 
         return () => {
-            socket.off(SocketEvents.TASK_ASSIGNED, handleTaskAssigned)
+            socket.off(SocketEvents.BID_HIRED, handleGigHired)
         }
-    }, [onTaskAssigned])
+    }, [onGigHired])
 }
 
 /**
@@ -155,16 +159,13 @@ export function useNotifications(onNotification?: (notification: NotificationPay
 
 /**
  * Unified hook for socket connection and events
- * Automatically connects socket and listens to all task events
- * 
- * @example
- * const { isConnected, notifications } = useSocketConnection(token)
+ * Automatically connects socket and listens to all gig events
  */
 export function useSocketConnection(token?: string) {
     const { isConnected, disconnect, socket } = useSocket(token)
 
-    // Auto-setup task event listeners
-    useTaskEvents()
+    // Auto-setup gig event listeners
+    useGigEvents()
 
     return {
         isConnected,

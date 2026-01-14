@@ -8,7 +8,7 @@ import {
     FolderOpen
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { PostTaskButton } from "../PostTaskButton"
+import { PostGigButton } from "@/components/features/gigs/post-gig-button"
 
 interface MainSidebarProps {
     isMobile?: boolean
@@ -18,20 +18,20 @@ export function MainSidebar({ isMobile }: MainSidebarProps) {
     const { pathname } = useLocation()
 
     const navItems = [
-        { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
-        { icon: CheckSquare, label: "My Tasks", href: "/dashboard/tasks" },
+        { icon: LayoutDashboard, label: "Feed", href: "/dashboard" },
+        { icon: CheckSquare, label: "My Gigs", href: "/dashboard/my-gigs" },
         { icon: FolderOpen, label: "Projects", href: "/dashboard/projects", disabled: true },
         { icon: Users, label: "Team", href: "/dashboard/team", disabled: true },
         { icon: Calendar, label: "Calendar", href: "/dashboard/calendar", disabled: true },
-        { icon: Settings, label: "Settings", href: "/dashboard/profile" }, // Direct to profile/settings
+        { icon: Settings, label: "Settings", href: "/dashboard/profile", disabled: true },
     ]
 
     return (
         <div className={cn("flex gap-4 h-full w-full", isMobile ? "flex-row items-center justify-between px-2 overflow-x-auto" : "flex-col")}>
-            {isMobile && <div className="px-2"><PostTaskButton mobile /></div>}
+            {isMobile && <div className="px-2"><PostGigButton mobile /></div>}
 
             <div className={cn("px-2", isMobile && "hidden")}>
-                <PostTaskButton />
+                <PostGigButton />
             </div>
 
             <div className={cn("space-y-1 px-2", isMobile ? "flex flex-1 justify-around space-y-0 gap-2" : "")}>

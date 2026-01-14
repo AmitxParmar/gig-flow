@@ -49,7 +49,7 @@ export function RegisterForm() {
             <CardHeader>
                 <CardTitle className="text-2xl">Create Account</CardTitle>
                 <CardDescription>
-                    Sign up to start managing your tasks
+                    Sign up to start managing your bids
                 </CardDescription>
             </CardHeader>
             <Form {...form}>

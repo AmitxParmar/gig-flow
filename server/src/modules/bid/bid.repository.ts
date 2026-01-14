@@ -1,4 +1,6 @@
-import Bid, { BidStatus } from '@/models/Bid';
+import Bid, { IBid, BidStatus } from '@/models/Bid';
+import { IGig } from '@/models/Gig'; // Will need to ignore missing import or assume simplified usage
+import { IUser } from '@/models/User';
 import logger from '@/lib/logger';
 
 export interface CreateBidData {
@@ -13,79 +15,15 @@ export interface UpdateBidData {
     price?: number;
 }
 
-export interface BidOwner {
-    id: string;
-    name: string;
-    email: string;
+// Reuse IBid but extend for populated fields
+export interface BidWithRelations extends Omit<IBid, 'freelancer' | 'gig'> {
+    freelancer: Partial<IUser>;
+    gig: Partial<IGig> & { owner: Partial<IUser> };
 }
 
-export interface BidGig {
-    id: string;
-    title: string;
-    budget: number;
-    status: string;
-    ownerId: string;
-    owner: BidOwner;
-}
+// Basic document
+export interface BidDocument extends IBid { }
 
-export interface BidWithRelations {
-    id: string;
-    message: string;
-    price: number;
-    status: BidStatus;
-    gigId: string;
-    freelancerId: string;
-    createdAt: Date;
-    updatedAt: Date;
-    freelancer: BidOwner;
-    gig: BidGig;
-}
-
-export interface BidDocument {
-    id: string;
-    _id?: any;
-    message: string;
-    price: number;
-    status: BidStatus;
-    gigId: any;
-    freelancerId: any;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
-// Helper to transform Mongoose document to BidWithRelations
-const transformBid = (bid: any): BidWithRelations => {
-    const gigData = bid.gigId;
-    const freelancerData = bid.freelancerId;
-
-    return {
-        id: bid._id?.toString() || bid.id,
-        message: bid.message,
-        price: bid.price,
-        status: bid.status,
-        gigId: gigData?._id?.toString() || gigData?.toString() || bid.gigId?.toString(),
-        freelancerId: freelancerData?._id?.toString() || freelancerData?.toString() || bid.freelancerId?.toString(),
-        createdAt: bid.createdAt,
-        updatedAt: bid.updatedAt,
-        freelancer: freelancerData?._id ? {
-            id: freelancerData._id.toString(),
-            name: freelancerData.name,
-            email: freelancerData.email,
-        } : { id: freelancerData?.toString() || '', name: '', email: '' },
-        gig: gigData?._id ? {
-            id: gigData._id.toString(),
-            title: gigData.title,
-            budget: gigData.budget,
-            status: gigData.status,
-            ownerId: gigData.ownerId?._id?.toString() || gigData.ownerId?.toString(),
-            owner: gigData.ownerId?._id ? {
-                id: gigData.ownerId._id.toString(),
-                name: gigData.ownerId.name,
-                email: gigData.ownerId.email,
-            } : { id: gigData.ownerId?.toString() || '', name: '', email: '' },
-        } : { id: gigData?.toString() || '', title: '', budget: 0, status: '', ownerId: '', owner: { id: '', name: '', email: '' } },
-    };
-};
 
 class BidRepository {
     /**
@@ -102,18 +40,18 @@ class BidRepository {
         });
 
         const populatedBid = await Bid.findById(bid._id)
-            .populate('freelancerId', 'name email')
+            .populate('freelancer', 'name email')
             .populate({
-                path: 'gigId',
+                path: 'gig',
                 select: 'title budget status ownerId',
                 populate: {
-                    path: 'ownerId',
+                    path: 'owner',
                     select: 'name email',
                 },
             })
             .lean();
 
-        return transformBid(populatedBid);
+        return populatedBid as unknown as BidWithRelations;
     }
 
     /**
@@ -121,12 +59,12 @@ class BidRepository {
      */
     async findBidById(id: string): Promise<BidWithRelations | null> {
         const bid = await Bid.findById(id)
-            .populate('freelancerId', 'name email')
+            .populate('freelancer', 'name email')
             .populate({
-                path: 'gigId',
+                path: 'gig',
                 select: 'title budget status ownerId',
                 populate: {
-                    path: 'ownerId',
+                    path: 'owner',
                     select: 'name email',
                 },
             })
@@ -134,7 +72,7 @@ class BidRepository {
 
         if (!bid) return null;
 
-        return transformBid(bid);
+        return bid as unknown as BidWithRelations;
     }
 
     /**
@@ -143,18 +81,18 @@ class BidRepository {
     async findBidsByGigId(gigId: string): Promise<BidWithRelations[]> {
         const bids = await Bid.find({ gigId })
             .sort({ createdAt: -1 })
-            .populate('freelancerId', 'name email')
+            .populate('freelancer', 'name email')
             .populate({
-                path: 'gigId',
+                path: 'gig',
                 select: 'title budget status ownerId',
                 populate: {
-                    path: 'ownerId',
+                    path: 'owner',
                     select: 'name email',
                 },
             })
             .lean();
 
-        return bids.map(transformBid);
+        return bids as unknown as BidWithRelations[];
     }
 
     /**
@@ -163,18 +101,18 @@ class BidRepository {
     async findBidsByFreelancerId(freelancerId: string): Promise<BidWithRelations[]> {
         const bids = await Bid.find({ freelancerId })
             .sort({ createdAt: -1 })
-            .populate('freelancerId', 'name email')
+            .populate('freelancer', 'name email')
             .populate({
-                path: 'gigId',
+                path: 'gig',
                 select: 'title budget status ownerId',
                 populate: {
-                    path: 'ownerId',
+                    path: 'owner',
                     select: 'name email',
                 },
             })
             .lean();
 
-        return bids.map(transformBid);
+        return bids as unknown as BidWithRelations[];
     }
 
     /**
@@ -188,12 +126,12 @@ class BidRepository {
             { $set: data },
             { new: true }
         )
-            .populate('freelancerId', 'name email')
+            .populate('freelancer', 'name email')
             .populate({
-                path: 'gigId',
+                path: 'gig',
                 select: 'title budget status ownerId',
                 populate: {
-                    path: 'ownerId',
+                    path: 'owner',
                     select: 'name email',
                 },
             })
@@ -203,7 +141,7 @@ class BidRepository {
             throw new Error('Bid not found');
         }
 
-        return transformBid(bid);
+        return bid as unknown as BidWithRelations;
     }
 
     /**
@@ -222,22 +160,11 @@ class BidRepository {
             throw new Error('Bid not found');
         }
 
-        return {
-            id: bid._id.toString(),
-            _id: bid._id,
-            message: bid.message,
-            price: bid.price,
-            status: bid.status,
-            gigId: bid.gigId,
-            freelancerId: bid.freelancerId,
-            createdAt: bid.createdAt,
-            updatedAt: bid.updatedAt,
-        };
+        return bid as unknown as BidDocument;
     }
 
     /**
      * Reject all other bids for a gig (except the hired one)
-     * Used during the hiring process
      */
     async rejectOtherBids(gigId: string, hiredBidId: string): Promise<number> {
         logger.info(`Rejecting all bids for gig ${gigId} except ${hiredBidId}`);
@@ -261,17 +188,7 @@ class BidRepository {
         const bid = await Bid.findOne({ gigId, freelancerId }).lean();
         if (!bid) return null;
 
-        return {
-            id: bid._id.toString(),
-            _id: bid._id,
-            message: bid.message,
-            price: bid.price,
-            status: bid.status,
-            gigId: bid.gigId,
-            freelancerId: bid.freelancerId,
-            createdAt: bid.createdAt,
-            updatedAt: bid.updatedAt,
-        };
+        return bid as unknown as BidDocument;
     }
 
     /**
@@ -288,17 +205,7 @@ class BidRepository {
         }
 
         const bids = await Bid.find(query).lean();
-        return bids.map(bid => ({
-            id: bid._id.toString(),
-            _id: bid._id,
-            message: bid.message,
-            price: bid.price,
-            status: bid.status,
-            gigId: bid.gigId,
-            freelancerId: bid.freelancerId,
-            createdAt: bid.createdAt,
-            updatedAt: bid.updatedAt,
-        }));
+        return bids as unknown as BidDocument[];
     }
 }
 

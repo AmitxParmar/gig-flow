@@ -25,7 +25,18 @@ class SocketClient {
             return this.socket
         }
 
-        const SOCKET_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+        let SOCKET_URL = 'http://localhost:8000';
+        try {
+            const apiUrl = import.meta.env.VITE_API_BASE_URL;
+            if (apiUrl) {
+                // If apiUrl has a path (e.g. /api/v1/development), we want just the origin for socket.io
+                // unless the server is actually namespaced, but generally it's at root.
+                const url = new URL(apiUrl);
+                SOCKET_URL = url.origin;
+            }
+        } catch (e) {
+            console.warn('Invalid VITE_API_BASE_URL, falling back to localhost:8000');
+        }
 
         this.socket = io(SOCKET_URL, {
             withCredentials: true, // Send cookies for JWT auth

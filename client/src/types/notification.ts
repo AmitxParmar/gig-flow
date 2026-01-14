@@ -4,7 +4,7 @@ export enum NotificationType {
 }
 
 export interface Notification {
-    id: string
+    _id: string
     userId: string
     taskId: string
     type: NotificationType

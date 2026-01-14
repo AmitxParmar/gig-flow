@@ -48,7 +48,7 @@ class BidService {
         }
 
         // Check if user is trying to bid on their own gig
-        if (gig.ownerId === userId) {
+        if (gig.ownerId.toString() === userId.toString()) {
             throw new HttpBadRequestError('Cannot bid on your own gig', [
                 'You cannot submit a bid on a gig you created',
             ]);
@@ -73,22 +73,22 @@ class BidService {
 
         // Notify gig owner about new bid
         await notificationService.notifyNewBid(
-            gig.ownerId,
+            gig.ownerId.toString(),
             gig.title,
-            gig.id,
-            bid.id,
-            bid.freelancer.name
+            gig._id.toString(),
+            bid._id.toString(),
+            bid.freelancer.name!
         );
 
         // Emit socket event for real-time update
-        socketService.notifyBidReceived(gig.ownerId, {
-            bidId: bid.id,
-            gigId: gig.id,
+        socketService.notifyBidReceived(gig.ownerId.toString(), {
+            bidId: bid._id.toString(),
+            gigId: gig._id.toString(),
             bid,
             freelancerId: userId,
         });
 
-        logger.info(`Bid created: ${bid.id} for gig ${data.gigId}`);
+        logger.info(`Bid created: ${bid._id.toString()} for gig ${data.gigId.toString()}`);
         return bid;
     }
 
@@ -97,14 +97,28 @@ class BidService {
      * Only the gig owner can see all bids
      */
     async getBidsForGig(gigId: string, userId: string): Promise<BidWithRelations[]> {
+        logger.info(`[BidService] getBidsForGig: gigId=${gigId}, userId=${userId}`);
         // Check if gig exists
         const gig = await gigRepository.findGigById(gigId);
         if (!gig) {
             throw new HttpNotFoundError('Gig not found');
         }
 
+        let gigOwnerId = gig.ownerId;
+        // If ownerId is populated (is an object), extract the _id
+        if (typeof gigOwnerId === 'object' && gigOwnerId !== null && '_id' in gigOwnerId) {
+            gigOwnerId = (gigOwnerId as any)._id;
+        }
+
         // Check if user is the gig owner
-        if (gig.ownerId !== userId) {
+        if (gigOwnerId.toString() !== userId.toString()) {
+            logger.error(`[BidService.getBidsForGig] Ownership check failed`, {
+                gigId,
+                originalGigOwnerId: gig.ownerId,
+                resolvedGigOwnerId: gigOwnerId,
+                userId,
+                isMatch: gigOwnerId.toString() === userId.toString()
+            });
             throw new HttpUnAuthorizedError('Only the gig owner can view all bids');
         }
 
@@ -180,7 +194,7 @@ class BidService {
         }
 
         // Verify the user is the gig owner
-        if (bid.gig.ownerId !== userId) {
+        if (bid?.gig?.ownerId?.toString() !== userId.toString()) {
             throw new HttpUnAuthorizedError('Only the gig owner can hire freelancers');
         }
 
@@ -199,7 +213,7 @@ class BidService {
         }
 
         // Get all pending bids before the transaction (for notifications)
-        const pendingBids = await bidRepository.findPendingBidsForGig(bid.gigId, bidId);
+        const pendingBids = await bidRepository.findPendingBidsForGig(bid.gigId.toString(), bidId);
 
         // Start MongoDB session for transaction
         const session = await mongoose.startSession();
@@ -267,32 +281,32 @@ class BidService {
         // Send notifications (outside transaction for performance)
         // Notify hired freelancer
         await notificationService.notifyHired(
-            bid.freelancerId,
-            bid.gig.title,
-            bid.gigId,
+            bid.freelancerId.toString(),
+            bid.gig.title as string,
+            bid.gigId.toString(),
             bidId
         );
 
         // Emit socket event for hired freelancer
-        socketService.notifyBidHired(bid.freelancerId, {
+        socketService.notifyBidHired(bid.freelancerId.toString(), {
             bidId,
-            gigId: bid.gigId,
+            gigId: bid.gigId.toString(),
             bid: updatedBid,
-            freelancerId: bid.freelancerId,
+            freelancerId: bid.freelancerId.toString(),
         });
 
         // Notify rejected freelancers
         for (const rejectedBid of pendingBids) {
             await notificationService.notifyBidRejected(
                 rejectedBid.freelancerId.toString(),
-                bid.gig.title,
-                bid.gigId,
-                rejectedBid.id
+                bid.gig.title as string,
+                bid.gigId.toString(),
+                rejectedBid._id.toString()
             );
 
             socketService.notifyBidRejected(rejectedBid.freelancerId.toString(), {
-                bidId: rejectedBid.id,
-                gigId: bid.gigId,
+                bidId: rejectedBid._id.toString(),
+                gigId: bid.gigId.toString(),
                 freelancerId: rejectedBid.freelancerId.toString(),
             });
         }

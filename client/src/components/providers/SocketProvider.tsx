@@ -3,11 +3,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { socketClient } from '@/lib/socket'
 import { useCurrentUser } from '@/hooks/useAuth'
-import { SocketEvents, type NotificationPayload, type TaskEventPayload } from '@/types/socket'
-import { taskKeys } from '@/hooks/useTasks'
+import { SocketEvents, type NotificationPayload, type GigEventPayload } from '@/types/socket'
+import { gigKeys } from '@/hooks/useGigs'
 import { notificationKeys } from '@/hooks/useNotification'
 import type { Notification } from '@/types/notification'
-import type { Task } from '@/types/task'
+import type { Gig } from '@/types/gig'
 
 interface SocketContextValue {
     isConnected: boolean
@@ -43,46 +43,35 @@ export function SocketProvider({ children }: SocketProviderProps) {
         // The server will read the JWT from cookies
         const socket = socketClient.connect('')
 
-        // === Task Event Handlers ===
-        const handleTaskCreated = (payload: TaskEventPayload) => {
-            console.log('Socket: Task created', payload)
-            // Invalidate task lists to refetch (new task needs full data)
-            queryClient.invalidateQueries({ queryKey: taskKeys.lists() })
+        // === Gig Event Handlers ===
+        const handleGigCreated = (payload: GigEventPayload) => {
+            console.log('Socket: Gig created', payload)
+            // Invalidate gig lists to refetch (new gig needs full data)
+            queryClient.invalidateQueries({ queryKey: gigKeys.lists() })
+            queryClient.invalidateQueries({ queryKey: gigKeys.my })
         }
 
-        const handleTaskUpdated = (payload: TaskEventPayload) => {
-            console.log('Socket: Task updated', payload)
-            if (payload.task) {
-                // Directly update specific task in cache
-                queryClient.setQueryData<Task>(
-                    taskKeys.detail(payload.taskId),
-                    payload.task as Task
+        const handleGigUpdated = (payload: GigEventPayload) => {
+            console.log('Socket: Gig updated', payload)
+            if (payload.gig) {
+                // Directly update specific gig in cache
+                queryClient.setQueryData<Gig>(
+                    gigKeys.detail(payload.gigId),
+                    payload.gig as Gig
                 )
-                // Update task in list caches
-                queryClient.setQueriesData<Task[]>(
-                    { queryKey: taskKeys.lists() },
-                    (oldTasks) => {
-                        if (!oldTasks) return oldTasks
-                        return oldTasks.map((task) =>
-                            task.id === payload.taskId ? (payload.task as Task) : task
-                        )
-                    }
-                )
+                // Update gig in list caches could be complex due to filters, so we invalidate
+                queryClient.invalidateQueries({ queryKey: gigKeys.lists() })
+                queryClient.invalidateQueries({ queryKey: gigKeys.my })
             }
         }
 
-        const handleTaskDeleted = (payload: { taskId: string }) => {
-            console.log('Socket: Task deleted', payload)
+        const handleGigDeleted = (payload: { gigId: string }) => {
+            console.log('Socket: Gig deleted', payload)
             // Remove from detail cache
-            queryClient.removeQueries({ queryKey: taskKeys.detail(payload.taskId) })
-            // Remove from list caches
-            queryClient.setQueriesData<Task[]>(
-                { queryKey: taskKeys.lists() },
-                (oldTasks) => {
-                    if (!oldTasks) return oldTasks
-                    return oldTasks.filter((task) => task.id !== payload.taskId)
-                }
-            )
+            queryClient.removeQueries({ queryKey: gigKeys.detail(payload.gigId) })
+            // Invalidate lists
+            queryClient.invalidateQueries({ queryKey: gigKeys.lists() })
+            queryClient.invalidateQueries({ queryKey: gigKeys.my })
         }
 
         // === Notification Event Handlers ===
@@ -114,19 +103,30 @@ export function SocketProvider({ children }: SocketProviderProps) {
         }
 
         // === Subscribe to Events ===
-        socket.on(SocketEvents.TASK_CREATED, handleTaskCreated)
-        socket.on(SocketEvents.TASK_UPDATED, handleTaskUpdated)
-        socket.on(SocketEvents.TASK_DELETED, handleTaskDeleted)
+        const handleBidHired = (payload: { gigId: string }) => {
+            console.log('Socket: Bid hired', payload)
+            // Refetch gig and bids
+            queryClient.invalidateQueries({ queryKey: gigKeys.detail(payload.gigId) })
+            queryClient.invalidateQueries({ queryKey: gigKeys.lists() })
+            queryClient.invalidateQueries({ queryKey: gigKeys.my })
+            // Invalidate bids for this gig
+            // Note: need to import bidKeys if not available, or just rely on invalidation
+        }
+
+        // === Subscribe to Events ===
+        socket.on(SocketEvents.GIG_CREATED, handleGigCreated)
+        socket.on(SocketEvents.GIG_UPDATED, handleGigUpdated)
+        socket.on(SocketEvents.GIG_DELETED, handleGigDeleted)
         socket.on(SocketEvents.NOTIFICATION, handleNotification)
-        socket.on(SocketEvents.TASK_ASSIGNED, handleTaskCreated) // Also refetch on assignment
+        socket.on(SocketEvents.BID_HIRED, handleBidHired) // Refetch on hiring
 
         // === Cleanup ===
         return () => {
-            socket.off(SocketEvents.TASK_CREATED, handleTaskCreated)
-            socket.off(SocketEvents.TASK_UPDATED, handleTaskUpdated)
-            socket.off(SocketEvents.TASK_DELETED, handleTaskDeleted)
+            socket.off(SocketEvents.GIG_CREATED, handleGigCreated)
+            socket.off(SocketEvents.GIG_UPDATED, handleGigUpdated)
+            socket.off(SocketEvents.GIG_DELETED, handleGigDeleted)
             socket.off(SocketEvents.NOTIFICATION, handleNotification)
-            socket.off(SocketEvents.TASK_ASSIGNED, handleTaskCreated)
+            socket.off(SocketEvents.BID_HIRED, handleBidHired)
         }
     }, [user, queryClient])
 

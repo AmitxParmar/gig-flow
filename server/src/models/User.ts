@@ -3,7 +3,6 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 // ==================== INTERFACES ====================
 
 export interface IUser extends Document {
-    id: string;
     name: string;
     email: string;
     passwordHash: string;
@@ -38,32 +37,7 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
     },
     {
         timestamps: true,
-        toJSON: {
-            virtuals: true,
-            transform: (_doc, ret) => {
-                return {
-                    id: ret._id.toString(),
-                    name: ret.name,
-                    email: ret.email,
-                    passwordHash: ret.passwordHash,
-                    createdAt: ret.createdAt,
-                    updatedAt: ret.updatedAt,
-                };
-            },
-        },
-        toObject: {
-            virtuals: true,
-            transform: (_doc, ret) => {
-                return {
-                    id: ret._id.toString(),
-                    name: ret.name,
-                    email: ret.email,
-                    passwordHash: ret.passwordHash,
-                    createdAt: ret.createdAt,
-                    updatedAt: ret.updatedAt,
-                };
-            },
-        },
+
     }
 );
 

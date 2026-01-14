@@ -3,25 +3,21 @@ import { HttpStatusCode } from 'axios';
 import bidService from './bid.service';
 import { type AuthRequest } from '@/types/auth.type';
 import { CreateBidDto, UpdateBidDto } from '@/dto/bid.dto';
-import logger from '@/lib/logger';
+import Api from '@/lib/api';
 
-class BidController {
+class BidController extends Api {
     /**
      * Submit a new bid
      * POST /api/bids
      */
     async createBid(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         try {
-            const userId = req.user!.id;
+            const userId = req.user!._id;
             const data: CreateBidDto = req.body;
 
             const bid = await bidService.createBid(data, userId);
 
-            res.status(HttpStatusCode.Created).json({
-                success: true,
-                message: 'Bid submitted successfully',
-                data: bid,
-            });
+            this.send(res, bid, HttpStatusCode.Created, 'Bid submitted successfully');
         } catch (error) {
             next(error);
         }
@@ -33,16 +29,12 @@ class BidController {
      */
     async getBidsForGig(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         try {
-            const userId = req.user!.id;
+            const userId = req.user!._id;
             const { gigId } = req.params;
 
             const bids = await bidService.getBidsForGig(gigId, userId);
 
-            res.status(HttpStatusCode.Ok).json({
-                success: true,
-                message: 'Bids fetched successfully',
-                data: bids,
-            });
+            this.send(res, bids, HttpStatusCode.Ok, 'Bids fetched successfully');
         } catch (error) {
             next(error);
         }
@@ -54,15 +46,11 @@ class BidController {
      */
     async getMyBids(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         try {
-            const userId = req.user!.id;
+            const userId = req.user!._id;
 
             const bids = await bidService.getMyBids(userId);
 
-            res.status(HttpStatusCode.Ok).json({
-                success: true,
-                message: 'Your bids fetched successfully',
-                data: bids,
-            });
+            this.send(res, bids, HttpStatusCode.Ok, 'Your bids fetched successfully');
         } catch (error) {
             next(error);
         }
@@ -74,17 +62,13 @@ class BidController {
      */
     async updateBid(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         try {
-            const userId = req.user!.id;
+            const userId = req.user!._id;
             const { bidId } = req.params;
             const data: UpdateBidDto = req.body;
 
             const bid = await bidService.updateBid(bidId, data, userId);
 
-            res.status(HttpStatusCode.Ok).json({
-                success: true,
-                message: 'Bid updated successfully',
-                data: bid,
-            });
+            this.send(res, bid, HttpStatusCode.Ok, 'Bid updated successfully');
         } catch (error) {
             next(error);
         }
@@ -96,16 +80,12 @@ class BidController {
      */
     async hireBid(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         try {
-            const userId = req.user!.id;
+            const userId = req.user!._id;
             const { bidId } = req.params;
 
             const bid = await bidService.hireBid(bidId, userId);
 
-            res.status(HttpStatusCode.Ok).json({
-                success: true,
-                message: 'Freelancer hired successfully!',
-                data: bid,
-            });
+            this.send(res, bid, HttpStatusCode.Ok, 'Freelancer hired successfully!');
         } catch (error) {
             next(error);
         }
