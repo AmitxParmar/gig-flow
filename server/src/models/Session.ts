@@ -28,7 +28,6 @@ const sessionSchema = new Schema<ISession, SessionModel, ISessionMethods>(
         refreshToken: {
             type: String,
             required: true,
-            unique: true,
         },
         userAgent: {
             type: String,

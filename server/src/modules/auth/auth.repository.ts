@@ -94,6 +94,14 @@ export class AuthRepository {
         });
     }
 
+    public async expireSessionIn(refreshToken: string, seconds: number): Promise<void> {
+        const expiresAt = new Date(Date.now() + seconds * 1000);
+        await Session.updateOne(
+            { refreshToken },
+            { $set: { expiresAt } }
+        );
+    }
+
     public async updateUser(
         id: string,
         data: { name?: string; email?: string }

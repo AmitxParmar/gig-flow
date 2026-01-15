@@ -14,7 +14,7 @@ class JwtService {
     constructor() {
         this.accessSecret = process.env.JWT_ACCESS_SECRET || 'access-secret-key';
         this.refreshSecret = process.env.JWT_REFRESH_SECRET || 'refresh-secret-key';
-        this.accessExpiresIn = process.env.JWT_ACCESS_EXPIRY || '15m';
+        this.accessExpiresIn = process.env.JWT_ACCESS_EXPIRY || '1h';
         this.refreshExpiresIn = process.env.JWT_REFRESH_EXPIRY || '7d';
     }
 
@@ -28,6 +28,7 @@ class JwtService {
     public generateRefreshToken(payload: Omit<JwtPayload, 'iat' | 'exp'>): string {
         const options: SignOptions = {
             expiresIn: this.refreshExpiresIn as jwt.SignOptions['expiresIn'],
+            jwtid: crypto.randomUUID(),
         };
         return jwt.sign(payload, this.refreshSecret, options);
     }

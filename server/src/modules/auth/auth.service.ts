@@ -158,8 +158,10 @@ export default class AuthService {
       throw new HttpUnAuthorizedError('Session expired', 'REFRESH_TOKEN_EXPIRED');
     }
 
-    // Delete old session
-    await authRepository.deleteSession(refreshToken);
+    // Delete old session (Grace Period 15s)
+    // Instead of deleting immediately, we let it live for 15s to handle race conditions
+    // where multiple valid requests come in with the same token simultaneously.
+    await authRepository.expireSessionIn(refreshToken, 15);
 
     // Generate new tokens
     const tokens = jwtService.generateTokenPair({
