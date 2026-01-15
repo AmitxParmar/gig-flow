@@ -57,7 +57,7 @@ export function useUpdateGig() {
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: gigKeys.lists() })
             queryClient.invalidateQueries({ queryKey: gigKeys.my })
-            queryClient.invalidateQueries({ queryKey: gigKeys.detail(data.id) })
+            queryClient.invalidateQueries({ queryKey: gigKeys.detail(data._id) })
         },
     })
 }

@@ -147,7 +147,7 @@ export function useNotifications(onNotification?: (notification: NotificationPay
     }, [])
 
     const removeNotification = useCallback((id: string) => {
-        setNotifications((prev) => prev.filter((n) => n.id !== id))
+        setNotifications((prev) => prev.filter((n) => n._id !== id))
     }, [])
 
     return {

@@ -8,6 +8,10 @@ import { Router, type Request, type Response } from 'express';
 
 const home: Router = Router();
 
+home.get('/health', (_req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 home.get('/', (_req: Request, res: Response) => {
   try {
     res.sendFile(path.join(__dirname, '../public/home.html'));

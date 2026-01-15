@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState } from "react"
 import { createFileRoute } from '@tanstack/react-router'
 import { GigList } from "@/components/features/gigs/gig-list"
 import { useGigs } from '@/hooks/useGigs'

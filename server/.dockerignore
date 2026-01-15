@@ -1,7 +1,13 @@
 node_modules
 dist
-coverage
-.git
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
 .env
+.env.*
+.git
+.vscode
+inventory
 .DS_Store
-*.log
+coverage
+.nyc_output

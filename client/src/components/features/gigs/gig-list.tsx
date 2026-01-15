@@ -24,7 +24,7 @@ export const GigList = memo(function GigList({
             {view === "list" ? (
                 <div className="space-y-3">
                     {gigs.map((gig) => (
-                        <div key={gig.id} className="flex items-center p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                        <div key={gig._id} className="flex items-center p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
                             <div>{gig.title}</div>
                         </div>
                     ))}
@@ -32,7 +32,7 @@ export const GigList = memo(function GigList({
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {gigs.map((gig) => (
-                        <GigCard key={gig.id} gig={gig} action={action} />
+                        <GigCard key={gig._id} gig={gig} action={action} />
                     ))}
                 </div>
             )}

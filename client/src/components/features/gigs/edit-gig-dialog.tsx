@@ -48,7 +48,7 @@ export function EditGigDialog({ gig, open, onOpenChange }: EditGigDialogProps) {
 
     async function onSubmit(data: EditGigFormValues) {
         updateGig({
-            id: gig.id,
+            id: gig._id,
             data: {
                 title: data.title,
                 description: data.description || "",
