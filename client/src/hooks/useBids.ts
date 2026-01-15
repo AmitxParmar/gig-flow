@@ -2,12 +2,25 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { bidService } from '@/services/bid.service'
 import type { CreateBidDto, UpdateBidDto } from '@/types/bid'
 
+/**
+ * Query keys for bid-related data.
+ */
 export const bidKeys = {
+    /** Key for all bids. */
     all: ['bids'] as const,
+    /** Key for bids associated with a specific gig. */
     byGig: (gigId: string) => [...bidKeys.all, 'gig', gigId] as const,
+    /** Key for bids belonging to the current user. */
     my: ['bids', 'my'] as const,
 }
 
+/**
+ * Hook to fetch all bids for a specific gig.
+ * 
+ * @param gigId - The ID of the gig to fetch bids for.
+ * @param options - Optional query configuration.
+ * @returns The query result containing bids for the gig.
+ */
 export function useBidsByGig(gigId: string, options?: { enabled?: boolean }) {
     return useQuery({
         queryKey: bidKeys.byGig(gigId),
@@ -16,6 +29,11 @@ export function useBidsByGig(gigId: string, options?: { enabled?: boolean }) {
     })
 }
 
+/**
+ * Hook to fetch all bids made by the current user.
+ * 
+ * @returns The query result containing the current user's bids.
+ */
 export function useMyBids() {
     return useQuery({
         queryKey: bidKeys.my,
@@ -23,6 +41,12 @@ export function useMyBids() {
     })
 }
 
+/**
+ * Hook to create a new bid on a gig.
+ * Automatically invalidates relevant bid queries on success.
+ * 
+ * @returns The mutation object for creating a bid.
+ */
 export function useCreateBid() {
     const queryClient = useQueryClient()
 
@@ -35,6 +59,12 @@ export function useCreateBid() {
     })
 }
 
+/**
+ * Hook to update an existing bid.
+ * Automatically invalidates relevant bid queries on success.
+ * 
+ * @returns The mutation object for updating a bid.
+ */
 export function useUpdateBid() {
     const queryClient = useQueryClient()
 
@@ -47,6 +77,12 @@ export function useUpdateBid() {
     })
 }
 
+/**
+ * Hook to hire a freelancer via their bid.
+ * Automatically invalidates relevant bid and gig queries on success.
+ * 
+ * @returns The mutation object for hiring a bid.
+ */
 export function useHireBid() {
     const queryClient = useQueryClient()
 
@@ -62,3 +98,4 @@ export function useHireBid() {
         },
     })
 }
+

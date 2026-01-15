@@ -22,17 +22,6 @@ export interface SessionDocument {
     expiresAt: Date;
     createdAt: Date;
 }
-
-// Helper to transform lean document to include id
-const transformUser = (user: any): SafeUser => ({
-    ...user,
-    // Ensure _id exists, and compatible with SafeUser interface
-    _id: user._id,
-    // We remove explicit 'id' setting here to rely on _id. 
-    // If SafeUser needs id, we might need to cast or updated SafeUser type.
-    // For now assuming SafeUser is compatible or updated to optional id.
-});
-
 export class AuthRepository {
     public async createUser(data: {
         email: string;
