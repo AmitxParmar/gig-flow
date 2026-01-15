@@ -10,6 +10,7 @@ import environment from './lib/environment';
 import expressJSDocSwaggerConfig from './config/express-jsdoc-swagger.config';
 import appConfig from './config/app.config';
 import errorHandler from '@/middlewares/error-handler';
+import { apiLimiter } from '@/middlewares/rate-limit';
 import routes from '@/modules/index';
 import database from '@/lib/mongoose';
 
@@ -47,6 +48,7 @@ class App {
     this.express.use(express.urlencoded({ extended: true }));
     this.express.use(cookieParser());
     this.express.use(helmet());
+    this.express.use(apiLimiter);
     this.express.use(express.static('public'));
   }
 
