@@ -41,7 +41,9 @@ export const GigCard = memo(function GigCard({ gig, action = 'bid' }: GigCardPro
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
 
     const createdAtAgo = useMemo(() => timeAgo(gig.createdAt), [gig.createdAt])
-    const creatorInitial = useMemo(() => gig.owner?.name?.charAt(0) || 'U', [gig.owner?.name])
+    // Handle both populated ownerId object and owner field
+    const ownerName = typeof gig.ownerId === 'object' && gig.ownerId !== null ? (gig.ownerId as any).name : gig.owner?.name
+    const creatorInitial = useMemo(() => ownerName?.charAt(0) || 'U', [ownerName])
 
     const statusStyles = useMemo(() => {
         const isOpen = gig.status === GigStatus.OPEN
@@ -91,7 +93,7 @@ export const GigCard = memo(function GigCard({ gig, action = 'bid' }: GigCardPro
                     <div className="mt-2 flex flex-row items-center justify-between z-20">
                         <div className="flex-1 pr-2">
                             <p className="font-bold text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                                {gig.owner?.name || "Unknown"}
+                                {ownerName || "Unknown"}
                             </p>
 
                             <HoverCard>
@@ -137,9 +139,9 @@ export const GigCard = memo(function GigCard({ gig, action = 'bid' }: GigCardPro
                         </h3>
                         <div className="flex justify-between items-center mt-auto">
                             <div className="text-xs text-muted-foreground font-medium">
-                                {gig.hiredFreelancer ? (
+                                {gig.hiredFreelancerId ? (
                                     <span className="text-green-600 flex items-center gap-1">
-                                        Hired: {gig.hiredFreelancer.name}
+                                        Hired: {typeof gig.hiredFreelancerId === 'object' ? (gig.hiredFreelancerId as any).name : gig.hiredFreelancer?.name || 'Unknown'}
                                     </span>
                                 ) : (
                                     <span>No one hired yet</span>

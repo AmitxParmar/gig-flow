@@ -32,7 +32,7 @@ class GigService {
             ownerId: userId,
         });
 
-        logger.info(`Gig created: ${gig.id} by user ${userId}`);
+        logger.info(`Gig created: ${gig._id} by user ${userId}`);
         return gig;
     }
 
@@ -41,13 +41,8 @@ class GigService {
      * Supports search by title and status filter
      */
     async getGigs(filters: GigFilters = {}): Promise<PaginatedGigs> {
-        // Default to showing only OPEN gigs unless status is specified
-        const queryFilters: GigFilters = {
-            ...filters,
-            status: filters.status || GigStatus.OPEN,
-        };
-
-        return gigRepository.findAllGigs(queryFilters);
+        // Show all gigs unless status is explicitly specified
+        return gigRepository.findAllGigs(filters);
     }
 
     /**

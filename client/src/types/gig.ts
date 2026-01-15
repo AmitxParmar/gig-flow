@@ -11,11 +11,11 @@ export interface Gig {
     description: string;
     budget: number;
     status: GigStatus;
-    ownerId: string;
-    hiredFreelancerId?: string | null;
+    ownerId: string | User; // Can be populated
+    hiredFreelancerId?: string | User | null; // Can be populated
     createdAt: string;
     updatedAt: string;
-    // Virtuals/Populated fields
+    // Virtuals/Populated fields (legacy, may not be used if ownerId/hiredFreelancerId are populated)
     owner?: User;
     hiredFreelancer?: User;
     bids?: any[]; // Avoiding circular dependency for now, or could use Bid type if moved to a shared file or imported carefully
