@@ -24,38 +24,48 @@ The backend API for the GigFlow freelancing marketplace. Built with Node.js, Exp
 
 The hiring process is a critical atomic transaction ensuring data integrity:
 
-
 ```mermaid
-sequenceDiagram
-    participant O as "Owner"
-    participant S as "Server (BidService)"
-    participant DB as "MongoDB (Transaction)"
-    participant N as "NotificationService"
-    participant F1 as "Hired Freelancer"
-    participant F2 as "Other Freelancers"
-
-    O->>S: "Hire Freelancer (BidID)"
-    S->>DB: "Start Session"
+flowchart TD
+    Start([Owner Clicks Hire]) --> ValidateBid{Bid Valid?}
+    ValidateBid -->|No| Error1[❌ Bid Not Found]
+    ValidateBid -->|Yes| CheckOwner{Is Gig Owner?}
     
-    rect #141414
-        note right of S: Atomic Transaction
-        S->>DB: "Check Gig Status (OPEN?)"
-        S->>DB: "Update Bid Status: HIRED"
-        S->>DB: "Update Other Bids: REJECTED"
-        S->>DB: "Update Gig Status: ASSIGNED"
+    CheckOwner -->|No| Error2[❌ Unauthorized]
+    CheckOwner -->|Yes| CheckStatus{Bid Status<br/>PENDING?}
+    
+    CheckStatus -->|No| Error3[❌ Already Processed]
+    CheckStatus -->|Yes| CheckGig{Gig Status<br/>OPEN?}
+    
+    CheckGig -->|No| Error4[❌ Gig Unavailable]
+    CheckGig -->|Yes| StartTx[Start MongoDB Transaction]
+    
+    StartTx --> DoubleCheck{Re-check Gig<br/>Status OPEN?}
+    
+    DoubleCheck -->|No| RaceError[❌ RACE CONDITION<br/>Another hire in progress]
+    DoubleCheck -->|Yes| AtomicOps
+    
+    subgraph AtomicOps[" Atomic Transaction "]
+        direction TB
+        Op1[Update Bid → HIRED] --> Op2[Reject Other Bids]
+        Op2 --> Op3[Update Gig → ASSIGNED]
     end
     
-    alt Success
-        S->>DB: "Commit Transaction"
-        S->>N: "Notify Hired Freelancer"
-        N-->>F1: "You are hired!"
-        S->>N: "Notify Rejected Freelancers"
-        N-->>F2: "Bid rejected"
-        S-->>O: "Success Response"
-    else Failure / Race Condition
-        S->>DB: "Abort Transaction"
-        S-->>O: "Error (Gig no longer available)"
-    end
+    AtomicOps --> Commit[Commit Transaction]
+    Commit --> NotifyHired[Notify Hired Freelancer]
+    NotifyHired --> NotifyRejected[Notify Rejected Freelancers]
+    NotifyRejected --> Success([✅ Success])
+    
+    RaceError --> Abort[Abort Transaction]
+    Abort --> UserError[Return Error:<br/>Gig No Longer Available]
+    
+    style AtomicOps fill:#1a1a1a,stroke:#666,stroke-width:2px
+    style Success fill:#0d4,stroke:#333,stroke-width:2px
+    style Error1 fill:#d33,stroke:#333,stroke-width:2px
+    style Error2 fill:#d33,stroke:#333,stroke-width:2px
+    style Error3 fill:#d33,stroke:#333,stroke-width:2px
+    style Error4 fill:#d33,stroke:#333,stroke-width:2px
+    style RaceError fill:#d33,stroke:#333,stroke-width:2px
+    style UserError fill:#d33,stroke:#333,stroke-width:2px
 ```
 
 
